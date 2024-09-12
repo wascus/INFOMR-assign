@@ -39,16 +39,29 @@ def init_pygame(width=800, height=600):
     glEnable(GL_DEPTH_TEST)  # Enable depth testing for true 3D rendering
     gluPerspective(45, (width / height), 0.1, 50.0)  # Set up a perspective projection matrix
     glTranslatef(0.0, 0.0, -5)  # Move back to see the object
-    glClearColor(1.0, 1.0, 1.0, 1.0)  # Set background to white
+    glClearColor(204/255, 255/255, 218/255, 1.0)  # Set background to white
+
 
 def init_lighting():
     glEnable(GL_LIGHTING)
     glEnable(GL_LIGHT0)
-    glLightfv(GL_LIGHT0, GL_POSITION, [1, 1, 1, 0])
-    glLightfv(GL_LIGHT0, GL_AMBIENT, [0.5, 0.5, 0.5, 1.0])
-    glLightfv(GL_LIGHT0, GL_DIFFUSE, [1.0, 1.0, 1.0, 1.0])
+
+    # Light source position (change these values to move the light source)
+    light_position = [1.0, 1.0, 0.0, 0.0]  # Directional light
+    glLightfv(GL_LIGHT0, GL_POSITION, light_position)
+
+    # Ambient light (global illumination)
+    ambient_light_color = [0.5, 0.5, 0.5, 1.0]  # Grayish ambient light
+    glLightfv(GL_LIGHT0, GL_AMBIENT, ambient_light_color)
+
+    # Diffuse light (direct illumination)
+    diffuse_light_color = [1.0, 1.0, 1.0, 1.0]  # White diffuse light
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuse_light_color)
+
+    # Enable color material
     glEnable(GL_COLOR_MATERIAL)
     glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE)
+
 
 def draw_obj(vertices, faces, normals):
     glBegin(GL_TRIANGLES)

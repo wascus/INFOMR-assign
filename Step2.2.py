@@ -42,7 +42,7 @@ plt.show()
 
 #identify outliers (shapes with many or few vertices/faces)
 outliers = df[(df['num_vertices'] < 100) | (df['num_vertices'] > 3500) |
-              (df['num_faces'] < 100) | (df['num_faces'] > 7000)]
+              (df['num_faces'] < 100) | (df['num_faces'] > 5000)]
 
 #write the results to excel, with a sheet for statistics and a sheet for outliers
 with pd.ExcelWriter('shape_analysis_stats_and_outliers.xlsx') as writer:

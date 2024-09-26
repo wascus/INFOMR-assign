@@ -12,7 +12,7 @@ def compute_normals(vertices, faces):
         edge1 = np.array(v1) - np.array(v0)
         edge2 = np.array(v2) - np.array(v0)
         normal = np.cross(edge1, edge2)
-        normal = normal / np.linalg.norm(normal)  # Normalize
+        normal = normal / np.linalg.norm(normal)
         normals[i] = normal
     return normals
 
@@ -34,6 +34,7 @@ def load_obj(filename):
     return vertices, faces, normals
 
 def init_pygame(width=800, height=600):
+    pygame.display.set_caption('3D Viewer')
     pygame.init()
     pygame.display.set_mode((width, height), DOUBLEBUF | OPENGL)
     glEnable(GL_DEPTH_TEST)  # Enable depth testing for true 3D rendering
@@ -131,4 +132,4 @@ def run_viewer(filename):
         clock.tick(60)
 
 if __name__ == '__main__':
-    run_viewer('C:/Users/anest/Documents/GitHub/INFOMR-assign/test.obj')
+    run_viewer('test.obj')

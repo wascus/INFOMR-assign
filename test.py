@@ -44,6 +44,8 @@ def init_pygame(width=800, height=600):
     gluPerspective(45, (width / height), 0.1, 50.0) # Set up a perspective projection matrix
     glTranslatef(0.0, 0.0, -5)  # Move back to see the object
 
+    glClearColor(1.0, 1.0, 1.0, 1.0)
+
 
 def draw_obj(vertices, faces, colors):
     """
@@ -51,10 +53,28 @@ def draw_obj(vertices, faces, colors):
     """
     glBegin(GL_TRIANGLES)
     for i, face in enumerate(faces):
-        glColor3f(*colors[i])  # Use the pre-generated color for the face
+        glColor3f(0.5,0.5,0.5)  # Use the pre-generated color for the face
         for vertex_index in face:
             glVertex3fv(vertices[vertex_index])
     glEnd()
+    glBegin(GL_LINES)
+    glColor3f(0,0,0)
+    for face in faces:
+        for i in range(len(face)):
+            glVertex3fv(vertices[face[i]])
+            glVertex3fv(vertices[face[(i+1)%len(face)]])
+    glEnd()
+
+# def draw_obj(vertices, faces, colors):
+#     """
+#     draws the 3D model using OpenGL
+#     """
+#     glBegin(GL_POINTS)
+#     for vertex in vertices:
+#         glVertex3fv(vertex)
+#     glEnd()
+
+
 
 def run_viewer(filename):
     vertices, faces, colors = load_obj(filename)

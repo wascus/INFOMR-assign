@@ -60,6 +60,6 @@ database_directory = "ShapeDatabase_INFOMR-master" #path to directory !!!REPLACE
 
 #run the analysis on the database and save the results to an Excel file
 results = pd.DataFrame(analyze_database(database_directory))
-results.to_excel('shape_analysis.xlsx', index=False)
+results.to_excel('shape_analysis_final.xlsx', index=False)
 
 

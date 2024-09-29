@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from prettytable import PrettyTable
 
 #read the excel file
-df = pd.read_excel('shape_analysis.xlsx')
+df = pd.read_excel('shape_analysis_final.xlsx')
 
 #calculate statistics for each shape - mean, standard deviation, min and max
 avg_faces = df['num_faces'].mean()
@@ -45,7 +45,7 @@ outliers = df[(df['num_vertices'] < 100) | (df['num_vertices'] > 35000) |
               (df['num_faces'] < 100) | (df['num_faces'] > 50000)]
 
 #write the results to excel, with a sheet for statistics and a sheet for outliers
-with pd.ExcelWriter('shape_analysis_stats_and_outliers.xlsx') as writer:
+with pd.ExcelWriter('shape_analysis_stats_and_outliers_final.xlsx') as writer:
     statistics_summary.to_excel(writer, sheet_name='Statistics', index=False)
     if not outliers.empty:
         outliers.to_excel(writer, sheet_name='Outliers', index=False)

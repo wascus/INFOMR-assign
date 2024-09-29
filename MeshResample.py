@@ -18,7 +18,7 @@ def is_heavily_sampled(mesh):
     """
     Checks if a mesh has more than 7500 vertices.
     """
-    return len(mesh.vertices) > 7500
+    return len(mesh.vertices) > 7500 or len(mesh.triangles) > 7500
 
 def check_mesh(file_path):
     """

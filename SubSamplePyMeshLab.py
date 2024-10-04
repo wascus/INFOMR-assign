@@ -62,13 +62,13 @@ def subsample_with_pymeshlab(obj_filepath, mlx_file, target_face_count):
 
 if __name__ == "__main__":
     # Define the path to your database folder containing OBJ models
-    database_folder = "HeavilySampled"  # Change this path if your folder is in a different location
+    database_folder = "RangeSelected"  # Change this path if your folder is in a different location
 
     # Define the path to your MLX file for subsampling
     mlx_file_path = "Subsampling.mlx"  # Change this path if your MLX file is in a different location
 
     # Define your target face count
-    target_face_count = 7450  # Set this to your desired number of faces
+    target_face_count = 4500  # Set this to your desired number of faces
 
     # Start the subsampling process using PyMeshLab
     process_all_obj_files_with_subsampling(database_folder, mlx_file_path, target_face_count)

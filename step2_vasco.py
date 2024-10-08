@@ -51,7 +51,6 @@ def flipping(vertices):
     else:
         return vertices
 
-def 
 
 def write_obj(filename, vertices, faces, normals=None, texcoords=None, group_name=None):
     with open(filename, 'w') as file:

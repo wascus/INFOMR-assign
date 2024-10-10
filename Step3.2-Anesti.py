@@ -4,14 +4,8 @@ import random
 import os
 import csv
 
-# Function to load the mesh and extract vertices using Open3D
-def load_mesh(file_path):
-    mesh = o3d.io.read_triangle_mesh(file_path)
-    mesh.compute_vertex_normals()
-    return np.asarray(mesh.vertices)
-
-# Function to compute A3 descriptor
-def compute_a3(vertices, num_samples=10000, bins=10):
+# Function to compute A3 descriptor (angle between 3 random vertices)
+def compute_a3(vertices, num_samples, bins):
     angles = []
     for _ in range(num_samples):
         v1, v2, v3 = random.sample(list(vertices), 3)
@@ -24,8 +18,8 @@ def compute_a3(vertices, num_samples=10000, bins=10):
     hist, _ = np.histogram(angles, bins=bins, range=(0, 180))
     return hist
 
-# Function to compute D1 descriptor
-def compute_d1(vertices, num_samples=10000, bins=10):
+# Function to compute D1 descriptor (distance between barycenter and random vertex) with bins
+def compute_d1(vertices, num_samples, bins):
     barycenter = np.mean(vertices, axis=0)
     distances = []
     for _ in range(num_samples):
@@ -35,8 +29,8 @@ def compute_d1(vertices, num_samples=10000, bins=10):
     hist, _ = np.histogram(distances, bins=bins)
     return hist
 
-# Function to compute D2 descriptor
-def compute_d2(vertices, num_samples=10000, bins=10):
+# Function to compute D2 descriptor (distance between 2 random vertices) with bins
+def compute_d2(vertices, num_samples, bins):
     distances = []
     for _ in range(num_samples):
         v1, v2 = random.sample(list(vertices), 2)
@@ -45,8 +39,8 @@ def compute_d2(vertices, num_samples=10000, bins=10):
     hist, _ = np.histogram(distances, bins=bins)
     return hist
 
-# Function to compute D3 descriptor
-def compute_d3(vertices, num_samples=10000, bins=10):
+# Function to compute D3 descriptor (square root of area of triangle given by 3 random vertices) with bins
+def compute_d3(vertices, num_samples, bins):
     areas = []
     for _ in range(num_samples):
         v1, v2, v3 = random.sample(list(vertices), 3)
@@ -59,8 +53,8 @@ def compute_d3(vertices, num_samples=10000, bins=10):
     hist, _ = np.histogram(np.sqrt(areas), bins=bins)
     return hist
 
-# Function to compute D4 descriptor
-def compute_d4(vertices, num_samples=10000, bins=10):
+# Function to compute D4 descriptor (cube root of volume of tetrahedron formed by 4 random vertices) with bins
+def compute_d4(vertices, num_samples, bins):
     volumes = []
     for _ in range(num_samples):
         v1, v2, v3, v4 = random.sample(list(vertices), 4)
@@ -70,9 +64,12 @@ def compute_d4(vertices, num_samples=10000, bins=10):
     hist, _ = np.histogram(np.cbrt(volumes), bins=bins)
     return hist
 
-# Main function to compute all shape descriptors for a single file
-def compute_shape_descriptors(file_path, num_samples=10000, bins=10):
-    vertices = load_mesh(file_path)
+# Function to compute all shape descriptors for a single file
+def compute_shape_descriptors(file_path, num_samples=1000, bins=10):
+    # Load the mesh
+    mesh = o3d.io.read_triangle_mesh(file_path)
+    mesh.compute_vertex_normals()
+    vertices = np.asarray(mesh.vertices)
 
     # Compute all histograms
     a3_histogram = compute_a3(vertices, num_samples, bins)
@@ -87,7 +84,7 @@ def compute_shape_descriptors(file_path, num_samples=10000, bins=10):
     return shape_descriptor
 
 # Function to iterate over all subfolders and compute descriptors for each model
-def process_database(database_path, num_samples=10000, bins=10, output_csv='shape_descriptors.csv'):
+def process_database(database_path, num_samples=1000, bins=10, output_csv='shape_descriptors.csv'):
     # Open CSV file for writing
     with open(output_csv, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
@@ -112,7 +109,7 @@ if __name__ == "__main__":
     database_path = 'ShapeDatabase_INFOMR-master'
 
     # Set the number of samples and bins for histograms
-    num_samples = 100
+    num_samples = 1000
     bins = 10
 
     # Process the entire database and save results to a CSV file

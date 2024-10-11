@@ -1,81 +1,43 @@
-import csv
-import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Function to read the CSV and extract the shape descriptors
-def read_shape_descriptors(csv_file):
-    shape_data = {}
-    with open(csv_file, newline='') as csvfile:
-        reader = csv.reader(csvfile)
-        header = next(reader)  # Skip header
 
-        for row in reader:
-            category = row[0]
-            model = row[1]
-            descriptors = np.array([float(x) for x in row[2:]])  # Convert the descriptor values to floats
-            shape_data[(category, model)] = descriptors
+# Function to read the CSV file and load the data into a Pandas DataFrame
+def load_csv_to_dataframe(csv_file):
+    return pd.read_csv(csv_file)
 
-    return shape_data
 
-# Function to visualize the histograms for a specific model using alternative graph types
-def visualize_alternative_graphs(descriptors, bins, shape_name, graph_type='scatter'):
-    descriptors_split = np.split(descriptors, 5)  # Split the concatenated histogram into 5 parts (A3, D1, D2, D3, D4)
-    descriptor_names = ['A3 (Angle between 3 vertices)', 'D1 (Distance from barycenter to vertex)',
-                        'D2 (Distance between 2 vertices)', 'D3 (Area of triangle)', 'D4 (Volume of tetrahedron)']
+# Function to plot KDE for each model separately, for a given descriptor
+def plot_kde_by_model(dataframe, descriptor_name):
+    models = dataframe['model'].unique()  # Get all unique models
+    plt.figure(figsize=(10, 6))
 
-    # Plot each descriptor as a separate graph based on the specified graph type
-    for i, descriptor in enumerate(descriptors_split):
-        plt.figure()
-        if graph_type == 'scatter':
-            # Scatter plot
-            plt.scatter(range(bins), descriptor)
-            plt.title(f'{shape_name}: {descriptor_names[i]} (Scatter Plot)')
-        elif graph_type == 'line':
-            # Line plot
-            plt.plot(range(bins), descriptor, marker='o')
-            plt.title(f'{shape_name}: {descriptor_names[i]} (Line Plot)')
-        elif graph_type == 'dot':
-            # Dot plot
-            plt.plot(range(bins), descriptor, 'bo')  # blue dots
-            plt.title(f'{shape_name}: {descriptor_names[i]} (Dot Plot)')
-        else:
-            # Default to bar plot if no valid graph type is specified
-            plt.bar(range(bins), descriptor, width=0.8)
-            plt.title(f'{shape_name}: {descriptor_names[i]} (Bar Plot)')
+    # Loop over each model and plot the KDE for that model's descriptor data
+    for model in models:
+        model_data = dataframe[dataframe['model'] == model][descriptor_name]
+        sns.kdeplot(model_data, label=model, lw=2)
 
-        plt.xlabel(f'Bins (Total: {bins})')
-        plt.ylabel('Frequency')
-        plt.show()
+    plt.title(f"KDE for {descriptor_name} Descriptor (Per Model)")
+    plt.xlabel('Value')
+    plt.ylabel('Density')
+    plt.legend(title="Model")
+    plt.grid(True)
+    plt.show()
 
-# Main function to load the CSV and visualize graphs for the model(s)
-def visualize_from_csv(csv_file, bins, model_name=None, graph_type='scatter'):
-    # Read the descriptors from the CSV
-    shape_data = read_shape_descriptors(csv_file)
 
-    if model_name:
-        # If a specific model is provided, visualize it
-        for (category, model), descriptors in shape_data.items():
-            if model == model_name:
-                visualize_alternative_graphs(descriptors, bins, f'{category}/{model}', graph_type)
-                break
-        else:
-            print(f'Model "{model_name}" not found in CSV.')
-    else:
-        # Visualize graphs for all models in the CSV
-        for (category, model), descriptors in shape_data.items():
-            visualize_alternative_graphs(descriptors, bins, f'{category}/{model}', graph_type)
+# Function to generate plots for all descriptors by model
+def plot_all_descriptors_by_model(csv_file):
+    df = load_csv_to_dataframe(csv_file)
 
-# Main block to run the script
+    # List of descriptors to plot
+    descriptors = ['A3', 'D1', 'D2', 'D3', 'D4']
+
+    # Plot each descriptor with separate lines for each model
+    for descriptor in descriptors:
+        plot_kde_by_model(df, descriptor)
+
+
 if __name__ == "__main__":
-    csv_file = 'shape_descriptors.csv'  # Path to your CSV file
-    bins = 10  # Number of bins used in the descriptor computation
-
-    # Optionally, specify a specific model name if you only want to visualize that one model.
-    # Leave it as None to visualize all models in the CSV.
-    model_name = None  # Example: 'model.obj' or None for all models
-
-    # Specify the graph type: 'scatter', 'line', 'dot', or 'bar' (default).
-    graph_type = 'dot'  # Change this to 'line', 'dot', or 'bar'
-
-    # Visualize the graphs from the CSV
-    visualize_from_csv(csv_file, bins, model_name, graph_type)
+    csv_file = 'shape_descriptors.csv'  # The CSV file generated by the first script
+    plot_all_descriptors_by_model(csv_file)

@@ -25,7 +25,7 @@ def reduce_vertices_with_cleanoff(off_filepath):
     cleanoff_jar_path = "cleanoff.jar"  # Update this path with the actual path of cleanoff.jar
     temp_off_filepath = os.path.splitext(off_filepath)[0] + "_temp.off"
 
-    epsilon = 0.000128  # Start with a small epsilon value as a float
+    epsilon = 0.000512  # Start with a small epsilon value as a float
     max_epsilon = 100  # Define a maximum epsilon value to prevent excessive merging
 
     while True:
@@ -33,7 +33,7 @@ def reduce_vertices_with_cleanoff(off_filepath):
         print(f"Current vertex count for {off_filepath}: {vertex_count}")
 
         # If the vertex count is 7500 or fewer, break out of the loop
-        if vertex_count <= 7500:
+        if vertex_count <= 5000:
             print(f"Vertex count is now under the limit for {off_filepath}.")
             break
 
@@ -49,7 +49,7 @@ def reduce_vertices_with_cleanoff(off_filepath):
             os.replace(temp_off_filepath, off_filepath)
 
             # Increase epsilon gradually to be more aggressive if needed
-            epsilon = min(epsilon * 2, max_epsilon)  # Increase epsilon as a float
+            epsilon = min(epsilon * 1.5, max_epsilon)  # Increase epsilon as a float
 
         except subprocess.CalledProcessError as e:
             print(f"Error running cleanoff.jar on {off_filepath}: {e}")

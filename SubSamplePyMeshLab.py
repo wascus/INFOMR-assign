@@ -1,22 +1,36 @@
 import os
 import pymeshlab
+import random
 
-# Function to process all .obj files in a folder and its subfolders
-def process_all_obj_files_with_subsampling(root_folder, mlx_file, target_face_count):
+# Function to process a percentage of .obj files in a folder and its subfolders
+def process_percentage_of_obj_files_with_subsampling(root_folder, mlx_file, target_face_count, percentage):
+    obj_files = []
+
+    # Traverse the folder and subfolders to collect all .obj files
     for root, dirs, files in os.walk(root_folder):
         for file in files:
             if file.lower().endswith('.obj'):
                 obj_filepath = os.path.join(root, file)
+                obj_files.append(obj_filepath)
 
-                print(f"Processing: {obj_filepath}")
+    # If there are files, select the specified percentage of them
+    if obj_files:
+        num_files_to_process = int(len(obj_files) * (percentage / 100))  # Calculate the number of files based on percentage
+        selected_files = random.sample(obj_files, num_files_to_process)  # Randomly select files based on the percentage
 
-                # Perform subsampling using PyMeshLab and save with the same name
-                success = subsample_with_pymeshlab(obj_filepath, mlx_file, target_face_count)
+        print(f"Processing {num_files_to_process} out of {len(obj_files)} .obj files ({percentage}% of total).")
 
-                if success:
-                    print(f"Subsampling completed and saved for: {obj_filepath}")
-                else:
-                    print(f"Skipping file due to an error: {obj_filepath}")
+        # Process each selected .obj file
+        for obj_filepath in selected_files:
+            print(f"Processing: {obj_filepath}")
+
+            # Perform subsampling using PyMeshLab and save with the same name
+            success = subsample_with_pymeshlab(obj_filepath, mlx_file, target_face_count)
+
+            if success:
+                print(f"Subsampling completed and saved for: {obj_filepath}")
+            else:
+                print(f"Skipping file due to an error: {obj_filepath}")
 
 # Function to perform subsampling iteratively using PyMeshLab
 def subsample_with_pymeshlab(obj_filepath, mlx_file, target_face_count):
@@ -62,15 +76,18 @@ def subsample_with_pymeshlab(obj_filepath, mlx_file, target_face_count):
 
 if __name__ == "__main__":
     # Define the path to your database folder containing OBJ models
-    database_folder = "RangeSelected"  # Change this path if your folder is in a different location
+    database_folder = "RangeFolders/Range_2614_2812"  # Change this path if your folder is in a different location
 
     # Define the path to your MLX file for subsampling
     mlx_file_path = "Subsampling.mlx"  # Change this path if your MLX file is in a different location
 
     # Define your target face count
-    target_face_count = 4500  # Set this to your desired number of faces
+    target_face_count = 2613  # Set this to your desired number of faces
 
-    # Start the subsampling process using PyMeshLab
-    process_all_obj_files_with_subsampling(database_folder, mlx_file_path, target_face_count)
+    # Define the percentage of .obj files to process
+    percentage_to_process = 45  # Adjust this percentage as needed
 
-    print("Subsampling with PyMeshLab and OBJ export process completed!")
+    # Start the subsampling process using PyMeshLab, processing the specified percentage of the OBJ files
+    process_percentage_of_obj_files_with_subsampling(database_folder, mlx_file_path, target_face_count, percentage_to_process)
+
+    print(f"Subsampling with PyMeshLab and OBJ export process for {percentage_to_process}% of files completed!")

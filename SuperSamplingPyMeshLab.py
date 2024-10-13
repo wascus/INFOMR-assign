@@ -46,7 +46,7 @@ def subdivide_with_pymeshlab(obj_filepath, mlx_file):
 
 if __name__ == "__main__":
     # Define the path to your database folder containing OBJ models
-    database_folder = "RefineNeeded"  # Change this path if your folder is in a different location
+    database_folder = "ShapeDatabase_INFOMR-master"  # Change this path if your folder is in a different location
 
     # Define the path to your MLX file
     mlx_file_path = "Subdivisions.mlx"  # Change this path if your MLX file is in a different location

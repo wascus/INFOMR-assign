@@ -16,10 +16,10 @@ def compute_surface_area(mesh):
 
 
 def compute_compactness(mesh, surface_area):
-    volume = mesh.volume  #approximation for non-watertight meshes
+    volume = mesh.volume  
     if volume == 0:
         return 0
-    compactness = (surface_area ** 3) / (36 * np.pi * volume ** 2)
+    compactness = (36 * np.pi * volume ** 2) / (surface_area ** 3)
     return compactness
 
 

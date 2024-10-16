@@ -59,6 +59,7 @@ def subsample_with_pymeshlab(obj_filepath, mlx_file, target_face_count):
             current_face_count = ms.current_mesh().face_number()
             print(f"Current face count after applying filter: {current_face_count}")
 
+
             # Break out if the target face count is reached or if there are no more faces
             if current_face_count <= target_face_count or current_face_count == 0:
                 print(f"Stopping iteration. Final face count: {current_face_count}")
@@ -76,16 +77,16 @@ def subsample_with_pymeshlab(obj_filepath, mlx_file, target_face_count):
 
 if __name__ == "__main__":
     # Define the path to your database folder containing OBJ models
-    database_folder = "RangeFolders/Range_2614_2812"  # Change this path if your folder is in a different location
+    database_folder = "HeavilySampled"  # Change this path if your folder is in a different location
 
     # Define the path to your MLX file for subsampling
     mlx_file_path = "Subsampling.mlx"  # Change this path if your MLX file is in a different location
 
     # Define your target face count
-    target_face_count = 2613  # Set this to your desired number of faces
+    target_face_count = 13000  # Set this to your desired number of faces
 
     # Define the percentage of .obj files to process
-    percentage_to_process = 45  # Adjust this percentage as needed
+    percentage_to_process = 100  # Adjust this percentage as needed
 
     # Start the subsampling process using PyMeshLab, processing the specified percentage of the OBJ files
     process_percentage_of_obj_files_with_subsampling(database_folder, mlx_file_path, target_face_count, percentage_to_process)

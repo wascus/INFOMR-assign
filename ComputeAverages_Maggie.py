@@ -31,6 +31,6 @@ def calculate_averages_and_save(csv_file, output_excel_file):
 #calculate_averages_and_save(csv_file, output_excel_file)
 
 #run everything - merged normalized features
-csv_file = 'merged_normalized_features.csv'  #update path as necessary
+csv_file = 'merged_normalized_features_combined.csv'  #update path as necessary
 output_excel_file = 'statistics_merged_normalized_features_combined.xlsx'  #same here
 calculate_averages_and_save(csv_file, output_excel_file)

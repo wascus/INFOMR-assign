@@ -3,6 +3,7 @@ import numpy as np
 import random
 import os
 import csv
+from multiprocessing import Pool
 
 # Function to compute a random point inside a triangle using barycentric coordinates
 def random_point_in_triangle(v1, v2, v3):
@@ -64,8 +65,12 @@ def compute_d4(vertices, num_samples):
     return volumes
 
 # Function to compute all descriptors and save them to CSV
-def compute_shape_descriptors(file_path, num_samples, output_csv, category, model_name):
-    mesh = o3d.io.read_triangle_mesh(file_path)
+def compute_shape_descriptors(args):
+    model_path, category, output_csv, num_samples = args
+    model_name = os.path.basename(model_path)
+    print(f"Processing {model_name} in {category}...")
+
+    mesh = o3d.io.read_triangle_mesh(model_path)
     mesh.compute_vertex_normals()
     vertices = np.asarray(mesh.vertices)
 
@@ -82,25 +87,31 @@ def compute_shape_descriptors(file_path, num_samples, output_csv, category, mode
         for i in range(num_samples):
             writer.writerow([category, model_name, a3_data[i], d1_data[i], d2_data[i], d3_data[i], d4_data[i]])
 
+# Function to process the entire database using multiprocessing
 def process_database(database_path, num_samples=1000, output_csv='shape_descriptors.csv'):
     # Create a new CSV file with a header
     with open(output_csv, mode='w', newline='') as csv_file:
         writer = csv.writer(csv_file)
         writer.writerow(['category', 'model', 'A3', 'D1', 'D2', 'D3', 'D4'])
 
+    # Prepare arguments for processing each model
+    args_list = []
     for category in os.listdir(database_path):
         category_path = os.path.join(database_path, category)
         if os.path.isdir(category_path):
             for model in os.listdir(category_path):
                 if model.endswith('.obj'):
                     model_path = os.path.join(category_path, model)
-                    print(f"Processing {model} in {category}...")
-                    compute_shape_descriptors(model_path, num_samples, output_csv, category, model)
+                    args_list.append((model_path, category, output_csv, num_samples))
+
+    # Create a pool with 12 processes
+    with Pool(processes=6) as pool:
+        pool.map(compute_shape_descriptors, args_list)
 
 if __name__ == "__main__":
     # Set the path to your shape database
     database_path = 'ShapeDatabase_INFOMR-master'
-    num_samples = 1000  # Modify as needed
+    num_samples = 10000  # Modify as needed
     output_csv = 'shape_descriptors.csv'
 
     # Process the database and save descriptors to CSV

@@ -32,11 +32,11 @@ def is_in_face_range(num_faces, min_faces, max_faces):
     """
     return min_faces <= num_faces <= max_faces
 
-def is_heavily_sampled_by_vertices(num_faces, min_faces=5000):
+def is_heavily_sampled_by_vertices(num_faces, num_vertices, min_faces=5000):
     """
     Checks if a mesh has more than a given number of vertices.
     """
-    return num_faces > min_faces
+    return num_vertices > min_faces
 
 def check_mesh(file_path):
     """
@@ -95,7 +95,7 @@ def process_folder(base_folder, refined_folder, heavily_sampled_folder, ranges_f
                     copy_mesh_to_folder(file_path, root, base_folder, refined_folder)
                     meshes_needing_refinement += 1
                 # If mesh has more than 5000 vertices, it goes to the HeavilySampled folder
-                elif is_heavily_sampled_by_vertices(num_faces, min_faces=13000):
+                elif is_heavily_sampled_by_vertices(num_faces, num_vertices, min_faces=15000):
                     print(f"Mesh {file_path} is heavily sampled (vertices > 5000).")
                     copy_mesh_to_folder(file_path, root, base_folder, heavily_sampled_folder)
                     meshes_heavily_sampled += 1
@@ -125,10 +125,10 @@ def process_folder(base_folder, refined_folder, heavily_sampled_folder, ranges_f
 
 if __name__ == "__main__":
     # Base folder path (Replace this with the path to your ShapeDatabase_INFOMR-master folder)
-    base_folder = "RefineNeeded2"  # Replace with the actual path to your folder
+    base_folder = "ShapeDatabase_INFOMR-master"  # Replace with the actual path to your folder
 
     # Refined folder where the refined meshes (faces < 1000 and vertices < 1000) will be copied
-    refined_folder = "RefineNeeded3"
+    refined_folder = "RefineNeeded"
 
     # HeavilySampled folder where the heavily sampled meshes (vertices > 5000) will be copied
     heavily_sampled_folder = "HeavilySampled"

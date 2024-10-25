@@ -23,6 +23,8 @@ current_file_path = None
 interactive_mode = False
 vis_option = "smoothshade"
 background_color = [1, 1, 1]  # Default to white background
+show_axes = False  # Toggle for displaying world axes
+axes_geometry = None  # Store the axes geometry to toggle it
 
 def calculate_emd(query_vector, features_matrix):
     distance_matrix = np.ones((len(query_vector), len(query_vector))) - np.eye(len(query_vector))
@@ -70,7 +72,7 @@ def on_model_select(event):
             messagebox.showerror("Error", f"Model file '{model_path}' not found.")
 
 def load_and_view_model(file_path):
-    global vis, interactive_mode, vis_option, background_color
+    global vis, interactive_mode, vis_option, background_color, show_axes, axes_geometry
     if vis is None:
         vis = o3d.visualization.Visualizer()
         vis.create_window(window_name="3D Model Viewer", width=800, height=600)
@@ -83,34 +85,58 @@ def load_and_view_model(file_path):
     # Normalize the mesh (scale and center)
     mesh = normalize_mesh(mesh)
 
-    # Clear previous geometries and add the new one based on the selected option
+    # Clear previous geometries
     vis.clear_geometries()
+
+    # Add geometry based on visualization option
     if vis_option == "smoothshade":
         vis.add_geometry(mesh)
         vis.get_render_option().mesh_show_wireframe = False
     elif vis_option == "wireframe":
-        vis.add_geometry(mesh)
-        vis.get_render_option().mesh_show_wireframe = True
+        # Use LineSet to create a wireframe-only version of the mesh
+        wireframe = o3d.geometry.LineSet.create_from_triangle_mesh(mesh)
+        vis.add_geometry(wireframe)
+        vis.get_render_option().mesh_show_wireframe = False
     elif vis_option == "wireframe_on_shaded":
         vis.add_geometry(mesh)
         vis.get_render_option().mesh_show_wireframe = True
-    elif vis_option == "world_axes":
-        vis.add_geometry(mesh)
-        axes = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.5)
-        vis.add_geometry(axes)
+
+    # Toggle the world axes visibility
+    if show_axes:
+        if axes_geometry is None:
+            axes_geometry = create_thin_axes()
+        vis.add_geometry(axes_geometry)
 
     # Set the background color
     opt = vis.get_render_option()
     opt.background_color = np.asarray(background_color)
 
-    # Update the visualizer
+    # Update the visualizer based on the current mode
     if interactive_mode:
-        vis.run()
+        vis.run()  # User can manipulate the view interactively and the window will close afterward
         vis.destroy_window()
-        vis = None
+        vis = None  # Destroy window after interaction
     else:
         vis.poll_events()
         vis.update_renderer()
+
+def create_thin_axes(size=0.5, thickness=0.01):
+    """
+    Creates a set of thin world axes.
+    """
+    points = [
+        [0, 0, 0], [size, 0, 0],  # X-axis
+        [0, 0, 0], [0, size, 0],  # Y-axis
+        [0, 0, 0], [0, 0, size]   # Z-axis
+    ]
+    lines = [[0, 1], [2, 3], [4, 5]]
+    colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]  # RGB colors for X, Y, Z
+    axes = o3d.geometry.LineSet(
+        points=o3d.utility.Vector3dVector(points),
+        lines=o3d.utility.Vector2iVector(lines)
+    )
+    axes.colors = o3d.utility.Vector3dVector(colors)
+    return axes
 
 def normalize_mesh(mesh):
     bbox = mesh.get_axis_aligned_bounding_box()
@@ -139,6 +165,12 @@ def toggle_background():
     if current_file_path:
         load_and_view_model(current_file_path)
 
+def toggle_axes():
+    global show_axes
+    show_axes = not show_axes
+    if current_file_path:
+        load_and_view_model(current_file_path)
+
 def turn_off_visualizer():
     global vis
     if vis:
@@ -147,10 +179,11 @@ def turn_off_visualizer():
         print("Visualizer turned off.")
 
 def reset_viewer():
-    global current_file_path
+    global current_file_path, axes_geometry
     listbox.delete(0, tk.END)
     current_file_path = None
     turn_off_visualizer()
+    axes_geometry = None  # Reset the axes geometry
     print("Viewer and list reset.")
 
 def create_gui():
@@ -176,7 +209,7 @@ def create_gui():
     tk.Button(root, text="Smooth Shade", command=lambda: set_vis_option("smoothshade")).pack(fill=tk.X)
     tk.Button(root, text="Wireframe", command=lambda: set_vis_option("wireframe")).pack(fill=tk.X)
     tk.Button(root, text="Wireframe on Shaded", command=lambda: set_vis_option("wireframe_on_shaded")).pack(fill=tk.X)
-    tk.Button(root, text="World Axes", command=lambda: set_vis_option("world_axes")).pack(fill=tk.X)
+    tk.Button(root, text="Toggle World Axes", command=toggle_axes).pack(fill=tk.X)
     tk.Button(root, text="Toggle Background", command=toggle_background).pack(fill=tk.X)
 
     # Add buttons for toggling mode, turning off the viewer, and resetting

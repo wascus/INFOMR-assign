@@ -17,6 +17,16 @@ feature_columns = [
     "Convexity", "Eccentricity", "A3", "D1", "D2", "D3", "D4"
 ]
 
+# Precompute distance ranges per feature for distance normalization
+def calculate_distance_ranges(features_matrix):
+    ranges = []
+    for i in range(features_matrix.shape[1]):
+        feature_column = features_matrix[:, i]
+        distances = np.abs(feature_column[:, None] - feature_column)  # Pairwise distances
+        range_val = np.max(distances) - np.min(distances)  # Range of distances for this feature
+        ranges.append(range_val if range_val != 0 else 1)  # Avoid division by zero
+    return np.array(ranges)
+
 # Global variables for Open3D visualizer and settings
 vis = None
 current_file_path = None
@@ -26,11 +36,17 @@ background_color = [1, 1, 1]  # Default to white background
 show_axes = False  # Toggle for displaying world axes
 axes_geometry = None  # Store the axes geometry to toggle it
 
-def calculate_emd(query_vector, features_matrix):
+# Calculate EMD with distance weighting
+def calculate_emd(query_vector, features_matrix, distance_ranges):
     distance_matrix = np.ones((len(query_vector), len(query_vector))) - np.eye(len(query_vector))
     emd_distances = []
     for feature_vector in features_matrix:
-        emd_distances.append(emd(query_vector.astype(np.float64), feature_vector.astype(np.float64), distance_matrix))
+        # Apply distance weighting by dividing each feature by its precomputed range
+        normalized_query = query_vector / distance_ranges
+        normalized_feature_vector = feature_vector / distance_ranges
+        emd_distances.append(
+            emd(normalized_query.astype(np.float64), normalized_feature_vector.astype(np.float64), distance_matrix)
+        )
     return emd_distances
 
 def search_similar_models():
@@ -43,8 +59,11 @@ def search_similar_models():
         query_vector = query_row[feature_columns].values.flatten()
         features_matrix = features_df[feature_columns].values
 
-        # Calculate EMD distances
-        emd_distances = calculate_emd(query_vector, features_matrix)
+        # Calculate distance ranges for each feature in the dataset
+        distance_ranges = calculate_distance_ranges(features_matrix)
+
+        # Calculate EMD distances with distance weighting
+        emd_distances = calculate_emd(query_vector, features_matrix, distance_ranges)
         features_df['Distance'] = emd_distances
 
         # Sort by distance and get the top 20 matches
@@ -93,7 +112,6 @@ def load_and_view_model(file_path):
         vis.add_geometry(mesh)
         vis.get_render_option().mesh_show_wireframe = False
     elif vis_option == "wireframe":
-        # Use LineSet to create a wireframe-only version of the mesh
         wireframe = o3d.geometry.LineSet.create_from_triangle_mesh(mesh)
         vis.add_geometry(wireframe)
         vis.get_render_option().mesh_show_wireframe = False
@@ -113,17 +131,14 @@ def load_and_view_model(file_path):
 
     # Update the visualizer based on the current mode
     if interactive_mode:
-        vis.run()  # User can manipulate the view interactively and the window will close afterward
+        vis.run()
         vis.destroy_window()
-        vis = None  # Destroy window after interaction
+        vis = None
     else:
         vis.poll_events()
         vis.update_renderer()
 
 def create_thin_axes(size=0.5, thickness=0.01):
-    """
-    Creates a set of thin world axes.
-    """
     points = [
         [0, 0, 0], [size, 0, 0],  # X-axis
         [0, 0, 0], [0, size, 0],  # Y-axis
@@ -183,7 +198,7 @@ def reset_viewer():
     listbox.delete(0, tk.END)
     current_file_path = None
     turn_off_visualizer()
-    axes_geometry = None  # Reset the axes geometry
+    axes_geometry = None
     print("Viewer and list reset.")
 
 def create_gui():

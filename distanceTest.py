@@ -1,7 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from pyemd import emd
-import numpy as np
+from scipy.spatial import distance
 
 # Load the normalized features from the provided CSV file
 file_path = "merged_normalized_features_combined.csv"
@@ -29,30 +28,33 @@ else:
     # Drop the non-feature columns to get the features matrix
     features_matrix = features_df[feature_columns].values
 
-    # Prepare the distance matrix for EMD calculation (since it's symmetric, we can use a simple one)
-    # For simplicity, we'll use the identity matrix as the distance between each feature.
-    distance_matrix = np.ones((len(query_vector), len(query_vector))) - np.eye(len(query_vector))
+    # Compute the Euclidean distance between the query vector and all database shapes
+    distances = distance.cdist([query_vector], features_matrix, metric='euclidean')[0]
 
-    # Compute the EMD between the query vector and all other shapes
-    emd_distances = []
-    for feature_vector in features_matrix:
-        emd_distances.append(emd(query_vector.astype(np.float64), feature_vector.astype(np.float64), distance_matrix))
-
-    # Add the EMD distances to the DataFrame
-    features_df['Distance'] = emd_distances
+    # Add the distances to the DataFrame
+    features_df['Distance'] = distances
 
     # Sort shapes by distance to find the closest matches
-    top_k = 20  # Adjust this number as needed
+    top_k = 10  # Adjust this number as needed
     top_matches = features_df.sort_values(by='Distance').head(top_k)
 
     # Display the top matches
     print("Top matches for the query shape:")
     print(top_matches[['Class', 'File', 'Distance']])
 
+    # Calculate the threshold for the top 10% of closest distances
+    percentile_10_threshold = features_df['Distance'].quantile(0.10)
+
+    # Filter shapes that have a distance below this threshold
+    matches_within_top_10_percent = features_df[features_df['Distance'] <= percentile_10_threshold]
+
+    print("\nShapes within the top 10% of closest distances:")
+    print(matches_within_top_10_percent[['Class', 'File', 'Distance']])
+
     # Plot a histogram of the distances for visualization
     plt.figure(figsize=(8, 6))
     plt.hist(features_df['Distance'], bins=50, color='blue', edgecolor='black', alpha=0.7)
-    plt.title('Histogram of EMD Distances from Query Shape to Database Shapes')
+    plt.title('Histogram of Distances from Query Shape to Database Shapes')
     plt.xlabel('Distance')
     plt.ylabel('Frequency')
     plt.grid(True)

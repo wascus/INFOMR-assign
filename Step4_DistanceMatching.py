@@ -7,12 +7,12 @@ import os
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.gridspec as gridspec
 
-# Load the feature data
+#load everything
 file_path = "/Users/maggiemaliszewski/Desktop/ToGitHub/feature_vector.csv"
 features_df = pd.read_csv(file_path)
 obj_root_directory = "/Users/maggiemaliszewski/Desktop/ToGitHub/ShapeDatabase_processed"
 
-#divide into single value and histogram features
+
 single_value_features = [
     "Surface Area", "Volume", "Compactness", "Rectangularity", "Diameter",
     "Convexity", "Eccentricity"
@@ -55,11 +55,11 @@ def calculate_emd(query_vector, features_matrix, distance_ranges):
         )
     return emd_distances
 
-#render the model
+
 def render_model(file_path):
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
-        return np.zeros((100, 100, 3), dtype='uint8')  # Blank image if file doesn't exist
+        return np.zeros((100, 100, 3), dtype='uint8')   #keep blank if the image doesn't exist
 
     try:
         mesh = trimesh.load(file_path)
@@ -73,10 +73,9 @@ def render_model(file_path):
         # Use buffer_rgba() to get the image data
         fig.canvas.draw()
         image = np.frombuffer(fig.canvas.buffer_rgba(), dtype='uint8')
-        image = image.reshape(fig.canvas.get_width_height()[::-1] + (4,))  # RGBA image with 4 channels
+        image = image.reshape(fig.canvas.get_width_height()[::-1] + (4,))  #RGBA image with 4 channels
         plt.close(fig)
-        # Convert RGBA to RGB by removing the alpha channel
-        return image[:, :, :3]  # Remove the alpha channel for RGB format
+        return image[:, :, :3]  #remove alpha channel to convert to RGB
     except Exception as e:
         print(f"Error rendering {file_path}: {e}")
         return np.zeros((100, 100, 3), dtype='uint8')
@@ -85,8 +84,7 @@ def search_and_display_multiple(query_shape_filenames):
     num_queries = len(query_shape_filenames)
     fig = plt.figure(figsize=(24, num_queries * 8))
 
-    # Define a grid with tight spacing
-    grid = gridspec.GridSpec(num_queries, 6, wspace=0, hspace=0)
+    grid = gridspec.GridSpec(num_queries, 6, wspace=0, hspace=0) #ensure tight spacing for better lookign plot
 
     for row_idx, query_shape_filename in enumerate(query_shape_filenames):
         query_row = features_df[features_df['File'] == query_shape_filename]
@@ -101,16 +99,15 @@ def search_and_display_multiple(query_shape_filenames):
             features_matrix_single = features_df[single_value_features].values
             features_matrix_histogram = np.array([get_histogram_vector(row) for _, row in features_df.iterrows()])
 
-            # Calculate the euclidean and EMD distances
+            #calculate the distances
             l2_distances = calculate_l2_distance(query_vector_single, features_matrix_single)
             distance_ranges = calculate_distance_ranges(features_matrix_histogram)
             emd_distances = calculate_emd(query_vector_histogram, features_matrix_histogram, distance_ranges)
 
-            # Get the top 6 matches excluding the query object itself
+            #display top matches
             features_df['Distance'] = l2_distances + emd_distances
-            top_matches = features_df.sort_values(by='Distance').iloc[1:6]  # Skip the first result (query itself)
+            top_matches = features_df.sort_values(by='Distance').iloc[1:6]  #skip the first result (query object)
 
-            # First show the query object separately
             query_model_path = os.path.join(obj_root_directory, query_row.iloc[0]['Class'], query_shape_filename)
             query_image = render_model(query_model_path)
 
@@ -125,14 +122,13 @@ def search_and_display_multiple(query_shape_filenames):
                 model_distance = row['Distance']
                 model_path = os.path.join(obj_root_directory, model_class, model_file)
 
-                # Display the retrieved object
                 model_image = render_model(model_path)
                 ax = fig.add_subplot(grid[row_idx, col_idx + 1])
                 ax.imshow(model_image)
                 ax.axis('off')
                 ax.set_title(f"{model_file}\nClass: {model_class}\nDist: {model_distance:.4f}", fontsize=12)
 
-    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Remove borders
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  #remove borders to make plot look better
     plt.show()
 
 

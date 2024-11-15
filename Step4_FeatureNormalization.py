@@ -7,10 +7,13 @@ histogram_df = pd.read_csv('shape_property_descriptors.csv', on_bad_lines='skip'
 
 
 ############################ GLOBAL PROPERTY DESCRIPTORS ############################
-#normalization method 1: apply robust scaling standardization using sklearn
+#apply robust scaling standardization using sklearn
 def robust_scaling(df, features):
     scaler = RobustScaler()
     df[features] = scaler.fit_transform(df[features])
+    #print median and IQR for each feature, so that we can use it for normalizing new objects
+    for feature, median, iqr in zip(features, scaler.center_, scaler.scale_):
+        print(f"Feature: {feature}, Median: {median}, IQR: {iqr}")
     return df
 
 #list all of the single-value features (global property descriptors), and divide per method

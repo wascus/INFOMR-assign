@@ -168,12 +168,12 @@ def load_and_view_model(file_path):
 
 def create_thin_axes(size=0.5, thickness=0.01):
     points = [
-        [0, 0, 0], [size, 0, 0],  # X-axis
-        [0, 0, 0], [0, size, 0],  # Y-axis
-        [0, 0, 0], [0, 0, size]   # Z-axis
+        [0, 0, 0], [size, 0, 0],  #x-axis
+        [0, 0, 0], [0, size, 0],  #y-axis
+        [0, 0, 0], [0, 0, size]   #z-axis
     ]
     lines = [[0, 1], [2, 3], [4, 5]]
-    colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]  # RGB colors for X, Y, Z
+    colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]  #colors in RGB
     axes = o3d.geometry.LineSet(
         points=o3d.utility.Vector3dVector(points),
         lines=o3d.utility.Vector2iVector(lines)

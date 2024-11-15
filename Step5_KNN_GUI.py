@@ -11,8 +11,6 @@ file_path = "feature_vector.csv"
 features_df = pd.read_csv(file_path)
 obj_root_directory = "ShapeDatabase_processed"
 
-
-#divide into single value and histogram features
 single_value_features = [
     "Surface Area", "Volume", "Compactness", "Rectangularity", "Diameter",
     "Convexity", "Eccentricity"

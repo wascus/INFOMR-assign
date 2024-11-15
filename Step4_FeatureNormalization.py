@@ -3,7 +3,7 @@ from sklearn.preprocessing import RobustScaler, MinMaxScaler
 
 #load the two CSV files (global and shape property descriptors), replace file names accordingly
 single_value_df = pd.read_csv('global_property_descriptors.csv', on_bad_lines='skip')
-histogram_df = pd.read_csv('shape_descriptors 2.csv', on_bad_lines='skip')
+histogram_df = pd.read_csv('shape_property_descriptors.csv', on_bad_lines='skip')
 
 
 ############################ GLOBAL PROPERTY DESCRIPTORS ############################
@@ -21,7 +21,7 @@ single_value_df = robust_scaling(single_value_df, single_value_features)
 
 ############################# SHAPE PROPERTY DESCRIPTORS ############################
 
-def bin_and_normalize_histogram_features(df, num_bins=10):
+def bin_and_normalize_histogram_features(df, num_bins=40):
     histogram_features = ['A3', 'D1', 'D2', 'D3', 'D4']
     binned_feature_dfs = []
 

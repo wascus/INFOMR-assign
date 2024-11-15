@@ -19,6 +19,7 @@ _Step4_FeatureNormalization.py:_ feature normalization (both single-value and hi
 _feature_vector.csv:_ combined feature vector with normalized single-value and histogram features  
 
 **STEP 5**  
+_Step5_tSNE.py_: code for performing dimensionality reduction using t-SNE   
 
 **STEP 6**  
 

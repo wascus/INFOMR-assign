@@ -33,6 +33,10 @@ def bin_and_normalize_histogram_features(df, num_bins=40):
         #create a one-hot encoding of the bins in order to count the elements in each bin
         binned_counts = pd.get_dummies(df[f'{feature}_bin'], prefix=f'{feature}_bin')
 
+        #make sure there are always 40 bins, even if all values are 0
+        all_bins = [f"{feature}_bin_{i}" for i in range(num_bins)]
+        binned_counts = binned_counts.reindex(columns=all_bins, fill_value=0)
+
         #aggregate the counts for each bin per model and normalize by dividing by the area
         binned_counts_sum = binned_counts.groupby(df['model']).sum()
         binned_counts_normalized = binned_counts_sum.div(binned_counts_sum.sum(axis=1), axis=0)

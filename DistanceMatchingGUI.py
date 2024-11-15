@@ -2,13 +2,16 @@ import pandas as pd
 import numpy as np
 from pyemd import emd
 import tkinter as tk
-from tkinter import messagebox, Listbox
+from tkinter import messagebox, Listbox, filedialog
 import open3d as o3d
 import os
+from Logic.Subsampling import Subsample
+from Logic.Supersampling import Supersample
+from Logic.CleanManifold import Clean
+from Logic.Normalize import Normalize
 
 # Load the normalized features from the provided CSV file
 file_path = "merged_normalized_features_combined.csv"
-master_folder = "ShapeDatabase_INFOMR-master"  # Replace with your master folder path
 features_df = pd.read_csv(file_path)
 
 # Define the columns representing the features
@@ -16,6 +19,7 @@ feature_columns = [
     "Surface Area", "Volume", "Compactness", "Rectangularity", "Diameter",
     "Convexity", "Eccentricity", "A3", "D1", "D2", "D3", "D4"
 ]
+
 
 # Precompute distance ranges per feature for distance normalization
 def calculate_distance_ranges(features_matrix):
@@ -27,14 +31,68 @@ def calculate_distance_ranges(features_matrix):
         ranges.append(range_val if range_val != 0 else 1)  # Avoid division by zero
     return np.array(ranges)
 
-# Global variables for Open3D visualizer and settings
-vis = None
-current_file_path = None
-interactive_mode = False
-vis_option = "smoothshade"
-background_color = [1, 1, 1]  # Default to white background
-show_axes = False  # Toggle for displaying world axes
-axes_geometry = None  # Store the axes geometry to toggle it
+
+# Feature extraction method for the model line retrieval
+def modelLineRetrieval(obj_file_path):
+    try:
+        # Load the OBJ file into an Open3D mesh
+        mesh = o3d.io.read_triangle_mesh(obj_file_path)
+        if not mesh.has_vertex_normals():
+            mesh.compute_vertex_normals()
+
+        # Step 2: Resample
+        num_faces = len(mesh.triangles)
+        if num_faces > 13000:
+            mesh = Subsample(mesh)  # Placeholder for decimate function
+        elif num_faces < 9000:
+            mesh = Supersample(mesh)  # Placeholder for subdivide function
+        else:
+            mesh = Clean(mesh)  # Placeholder for clean function
+
+        # Step 3: Normalize
+        mesh = Normalize(mesh)
+
+        #Step 4: HoleFilling
+
+        #Step 5: Get
+
+        # Extract various features (implementations will be handled by another script)
+        surface_area = calculate_surface_area(mesh)  # Placeholder function
+        volume = calculate_volume(mesh)  # Placeholder function
+        compactness = calculate_compactness(surface_area, volume)  # Placeholder function
+        rectangularity = calculate_rectangularity(mesh)  # Placeholder function
+        diameter = calculate_diameter(mesh)  # Placeholder function
+        convexity = calculate_convexity(mesh)  # Placeholder function
+        eccentricity = calculate_eccentricity(mesh)  # Placeholder function
+        a3 = calculate_a3_descriptor(mesh)  # Placeholder function
+        d1 = calculate_d1_descriptor(mesh)  # Placeholder function
+        d2 = calculate_d2_descriptor(mesh)  # Placeholder function
+        d3 = calculate_d3_descriptor(mesh)  # Placeholder function
+        d4 = calculate_d4_descriptor(mesh)  # Placeholder function
+
+        # Create a dictionary with all features (matching the format of the CSV)
+        new_model_features = {
+            "File": "D00514.obj",
+            "Surface Area": -0.056155981531512834,
+            "Volume": -0.32927574454562075,
+            "Compactness": -0.3042277698177236,
+            "Rectangularity": -0.5003597158421492,
+            "Diameter": 0.6695249597165905,
+            "Convexity": -0.5530466625113731,
+            "Eccentricity": 0.0009485357542467816,
+            "A3": 0.9676700183196667,
+            "D1": 0.4614996880820569,
+            "D2": 0.4585949265216225,
+            "D3": 0.14833945121559433,
+            "D4": 0.2661606466514979
+        }
+
+        return new_model_features
+
+    except Exception as e:
+        print(f"Error processing {obj_file_path}: {e}")
+        return None
+
 
 # Calculate EMD with distance weighting
 def calculate_emd(query_vector, features_matrix, distance_ranges):
@@ -49,168 +107,71 @@ def calculate_emd(query_vector, features_matrix, distance_ranges):
         )
     return emd_distances
 
+
+# Search for similar models
 def search_similar_models():
-    query_shape_filename = entry.get()
-    query_row = features_df[features_df['File'] == query_shape_filename]
+    # Check if an OBJ file has been selected
+    if not current_file_path or not current_file_path.endswith(".obj"):
+        messagebox.showerror("Error", "Please select a valid OBJ file.")
+        return
 
-    if query_row.empty:
-        messagebox.showerror("Error", f"Shape '{query_shape_filename}' not found in the dataset.")
-    else:
-        query_vector = query_row[feature_columns].values.flatten()
-        features_matrix = features_df[feature_columns].values
+    # Run modelLineRetrieval to get the extracted features from the input OBJ file
+    new_model_features = modelLineRetrieval(current_file_path)
 
-        # Calculate distance ranges for each feature in the dataset
-        distance_ranges = calculate_distance_ranges(features_matrix)
+    if not new_model_features:
+        messagebox.showerror("Error", "Could not extract features from the provided OBJ file.")
+        return
 
-        # Calculate EMD distances with distance weighting
-        emd_distances = calculate_emd(query_vector, features_matrix, distance_ranges)
-        features_df['Distance'] = emd_distances
+    # Convert the dictionary of features to a DataFrame for comparison
+    query_row = pd.DataFrame([new_model_features])
 
-        # Sort by distance and get the top 20 matches
-        top_matches = features_df.sort_values(by='Distance').head(20)
+    # Extract the feature values for the query
+    query_vector = query_row[feature_columns].values.flatten()
+    features_matrix = features_df[feature_columns].values
 
-        # Update the listbox with the results
-        listbox.delete(0, tk.END)
-        for idx, row in top_matches.iterrows():
-            listbox.insert(tk.END, f"{row['Class']} - {row['File']} (Distance: {row['Distance']:.4f})")
+    # Calculate distance ranges for each feature in the dataset
+    distance_ranges = calculate_distance_ranges(features_matrix)
 
-def on_model_select(event):
-    global current_file_path
+    # Calculate EMD distances with distance weighting
+    emd_distances = calculate_emd(query_vector, features_matrix, distance_ranges)
+    features_df['Distance'] = emd_distances
 
-    selected_idx = listbox.curselection()
-    if selected_idx:
-        selected_item = listbox.get(selected_idx[0])
-        model_file = selected_item.split(' - ')[1].split(' (')[0]
-        category = selected_item.split(' ')[0]
-        model_path = os.path.join(master_folder, category, model_file)
+    # Sort by distance and get the top 20 matches
+    top_matches = features_df.sort_values(by='Distance').iloc[:20]  # Get the top 20 closest matches
 
-        if os.path.exists(model_path):
-            current_file_path = model_path
-            load_and_view_model(model_path)
-        else:
-            messagebox.showerror("Error", f"Model file '{model_path}' not found.")
-
-def load_and_view_model(file_path):
-    global vis, interactive_mode, vis_option, background_color, show_axes, axes_geometry
-    if vis is None:
-        vis = o3d.visualization.Visualizer()
-        vis.create_window(window_name="3D Model Viewer", width=800, height=600)
-
-    # Read the mesh
-    mesh = o3d.io.read_triangle_mesh(file_path)
-    if not mesh.has_vertex_normals():
-        mesh.compute_vertex_normals()
-
-    # Normalize the mesh (scale and center)
-    mesh = normalize_mesh(mesh)
-
-    # Clear previous geometries
-    vis.clear_geometries()
-
-    # Add geometry based on visualization option
-    if vis_option == "smoothshade":
-        vis.add_geometry(mesh)
-        vis.get_render_option().mesh_show_wireframe = False
-    elif vis_option == "wireframe":
-        wireframe = o3d.geometry.LineSet.create_from_triangle_mesh(mesh)
-        vis.add_geometry(wireframe)
-        vis.get_render_option().mesh_show_wireframe = False
-    elif vis_option == "wireframe_on_shaded":
-        vis.add_geometry(mesh)
-        vis.get_render_option().mesh_show_wireframe = True
-
-    # Toggle the world axes visibility
-    if show_axes:
-        if axes_geometry is None:
-            axes_geometry = create_thin_axes()
-        vis.add_geometry(axes_geometry)
-
-    # Set the background color
-    opt = vis.get_render_option()
-    opt.background_color = np.asarray(background_color)
-
-    # Update the visualizer based on the current mode
-    if interactive_mode:
-        vis.run()
-        vis.destroy_window()
-        vis = None
-    else:
-        vis.poll_events()
-        vis.update_renderer()
-
-def create_thin_axes(size=0.5, thickness=0.01):
-    points = [
-        [0, 0, 0], [size, 0, 0],  # X-axis
-        [0, 0, 0], [0, size, 0],  # Y-axis
-        [0, 0, 0], [0, 0, size]   # Z-axis
-    ]
-    lines = [[0, 1], [2, 3], [4, 5]]
-    colors = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]  # RGB colors for X, Y, Z
-    axes = o3d.geometry.LineSet(
-        points=o3d.utility.Vector3dVector(points),
-        lines=o3d.utility.Vector2iVector(lines)
-    )
-    axes.colors = o3d.utility.Vector3dVector(colors)
-    return axes
-
-def normalize_mesh(mesh):
-    bbox = mesh.get_axis_aligned_bounding_box()
-    center = bbox.get_center()
-    mesh.translate(-center)
-    extent = bbox.get_extent()
-    scale_factor = 1.0 / max(extent)
-    mesh.scale(scale_factor, center=[0, 0, 0])
-    return mesh
-
-def toggle_mode():
-    global interactive_mode
-    interactive_mode = not interactive_mode
-    mode_button.config(text="Switch to Interactive" if not interactive_mode else "Switch to Automatic")
-    print(f"Mode switched to {'Interactive' if interactive_mode else 'Automatic'}")
-
-def set_vis_option(option):
-    global vis_option
-    vis_option = option
-    if current_file_path:
-        load_and_view_model(current_file_path)
-
-def toggle_background():
-    global background_color
-    background_color = [0, 0, 0] if background_color == [1, 1, 1] else [1, 1, 1]
-    if current_file_path:
-        load_and_view_model(current_file_path)
-
-def toggle_axes():
-    global show_axes
-    show_axes = not show_axes
-    if current_file_path:
-        load_and_view_model(current_file_path)
-
-def turn_off_visualizer():
-    global vis
-    if vis:
-        vis.destroy_window()
-        vis = None
-        print("Visualizer turned off.")
-
-def reset_viewer():
-    global current_file_path, axes_geometry
+    # Update the listbox with the results
     listbox.delete(0, tk.END)
-    current_file_path = None
-    turn_off_visualizer()
-    axes_geometry = None
-    print("Viewer and list reset.")
+    for idx, row in top_matches.iterrows():
+        listbox.insert(tk.END, f"{row['Class']} - {row['File']} (Distance: {row['Distance']:.4f})")
 
+
+# Open file dialog to select OBJ file
+def browse_file():
+    global current_file_path
+    # Open a file dialog to select an OBJ file
+    file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
+    if file_path:
+        current_file_path = file_path
+        entry.config(state="normal")
+        entry.delete(0, tk.END)
+        entry.insert(0, os.path.basename(file_path))
+        entry.config(state="readonly")
+
+
+# GUI Creation
 def create_gui():
-    global entry, listbox, mode_button
+    global entry, listbox, current_file_path
 
     root = tk.Tk()
     root.title("3D Model Search Using EMD with Open3D Viewer")
 
-    # Add input field and search button
-    tk.Label(root, text="Enter Model Name:").pack(pady=5)
-    entry = tk.Entry(root)
+    # Add input field, browse button, and search button
+    tk.Label(root, text="Select OBJ File:").pack(pady=5)
+    entry = tk.Entry(root, state="readonly")
     entry.pack(pady=5)
+
+    browse_button = tk.Button(root, text="Browse", command=browse_file)
+    browse_button.pack(pady=5)
 
     search_button = tk.Button(root, text="Search", command=search_similar_models)
     search_button.pack(pady=5)
@@ -218,22 +179,59 @@ def create_gui():
     # Add a listbox to display the top 20 results
     listbox = Listbox(root, width=80, height=20)
     listbox.pack(pady=10)
-    listbox.bind('<<ListboxSelect>>', on_model_select)
-
-    # Add buttons for visualization options
-    tk.Button(root, text="Smooth Shade", command=lambda: set_vis_option("smoothshade")).pack(fill=tk.X)
-    tk.Button(root, text="Wireframe", command=lambda: set_vis_option("wireframe")).pack(fill=tk.X)
-    tk.Button(root, text="Wireframe on Shaded", command=lambda: set_vis_option("wireframe_on_shaded")).pack(fill=tk.X)
-    tk.Button(root, text="Toggle World Axes", command=toggle_axes).pack(fill=tk.X)
-    tk.Button(root, text="Toggle Background", command=toggle_background).pack(fill=tk.X)
-
-    # Add buttons for toggling mode, turning off the viewer, and resetting
-    mode_button = tk.Button(root, text="Switch to Interactive", command=toggle_mode)
-    mode_button.pack(pady=5)
-    tk.Button(root, text="Turn Off Viewer", command=turn_off_visualizer).pack(pady=5)
-    tk.Button(root, text="Reset", command=reset_viewer).pack(pady=5)
 
     root.mainloop()
+
+
+# Placeholder utility functions for feature calculations
+# Implementations will be handled by another script, and these are just placeholders for now
+def calculate_surface_area(mesh):
+    pass
+
+
+def calculate_volume(mesh):
+    pass
+
+
+def calculate_compactness(surface_area, volume):
+    pass
+
+
+def calculate_rectangularity(mesh):
+    pass
+
+
+def calculate_diameter(mesh):
+    pass
+
+
+def calculate_convexity(mesh):
+    pass
+
+
+def calculate_eccentricity(mesh):
+    pass
+
+
+def calculate_a3_descriptor(mesh):
+    pass
+
+
+def calculate_d1_descriptor(mesh):
+    pass
+
+
+def calculate_d2_descriptor(mesh):
+    pass
+
+
+def calculate_d3_descriptor(mesh):
+    pass
+
+
+def calculate_d4_descriptor(mesh):
+    pass
+
 
 if __name__ == "__main__":
     create_gui()

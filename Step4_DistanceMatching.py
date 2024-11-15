@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 import trimesh
 from pyemd import emd
 import os
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import matplotlib.gridspec as gridspec
 
-#load all the files
-file_path = "feature_vector.csv"
-master_folder = "ShapeDatabase_processed"
+# Load the feature data
+file_path = "/Users/maggiemaliszewski/Desktop/ToGitHub/feature_vector.csv"
 features_df = pd.read_csv(file_path)
+obj_root_directory = "/Users/maggiemaliszewski/Desktop/ToGitHub/ShapeDatabase_processed"
 
 #divide into single value and histogram features
 single_value_features = [
@@ -55,30 +57,36 @@ def calculate_emd(query_vector, features_matrix, distance_ranges):
 
 #render the model
 def render_model(file_path):
-    mesh = trimesh.load(file_path)
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
+        return np.zeros((100, 100, 3), dtype='uint8')  # Blank image if file doesn't exist
 
-    fig = plt.figure(figsize=(15, 15))
-    ax = fig.add_subplot(111, projection='3d')
+    try:
+        mesh = trimesh.load(file_path)
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.add_subplot(111, projection='3d')
 
-    #create a wireframe plot of the mesh
-    vertices = mesh.vertices
-    faces = mesh.faces
-    ax.plot_trisurf(vertices[:, 0], vertices[:, 1], faces, vertices[:, 2], color='lightblue', edgecolor='k',
-                    linewidth=0.3)
-    ax.axis('off')
+        ax.add_collection3d(Poly3DCollection(mesh.triangles, alpha=0.7, facecolor='lightblue', edgecolor='k'))
+        ax.auto_scale_xyz(mesh.bounds[:, 0], mesh.bounds[:, 1], mesh.bounds[:, 2])
+        ax.axis('off')
 
-    #convert from matplotlib rendering into an image using buffer_rgba
-    fig.canvas.draw()
-    image = np.frombuffer(fig.canvas.buffer_rgba(), dtype='uint8')
-    image = image.reshape(fig.canvas.get_width_height()[::-1] + (4,))  # RGBA image with 4 channels
-    plt.close(fig)
+        # Use buffer_rgba() to get the image data
+        fig.canvas.draw()
+        image = np.frombuffer(fig.canvas.buffer_rgba(), dtype='uint8')
+        image = image.reshape(fig.canvas.get_width_height()[::-1] + (4,))  # RGBA image with 4 channels
+        plt.close(fig)
+        # Convert RGBA to RGB by removing the alpha channel
+        return image[:, :, :3]  # Remove the alpha channel for RGB format
+    except Exception as e:
+        print(f"Error rendering {file_path}: {e}")
+        return np.zeros((100, 100, 3), dtype='uint8')
 
-    return image
-
-#search and then make and show the visualization:
 def search_and_display_multiple(query_shape_filenames):
+    num_queries = len(query_shape_filenames)
+    fig = plt.figure(figsize=(24, num_queries * 8))
 
-    fig, axes = plt.subplots(len(query_shape_filenames), 7, figsize=(20, len(query_shape_filenames) * 6))
+    # Define a grid with tight spacing
+    grid = gridspec.GridSpec(num_queries, 6, wspace=0, hspace=0)
 
     for row_idx, query_shape_filename in enumerate(query_shape_filenames):
         query_row = features_df[features_df['File'] == query_shape_filename]
@@ -93,39 +101,40 @@ def search_and_display_multiple(query_shape_filenames):
             features_matrix_single = features_df[single_value_features].values
             features_matrix_histogram = np.array([get_histogram_vector(row) for _, row in features_df.iterrows()])
 
-            #calculate the euclidean and emd distances
+            # Calculate the euclidean and EMD distances
             l2_distances = calculate_l2_distance(query_vector_single, features_matrix_single)
             distance_ranges = calculate_distance_ranges(features_matrix_histogram)
             emd_distances = calculate_emd(query_vector_histogram, features_matrix_histogram, distance_ranges)
 
-            #get the top 6 matches
+            # Get the top 6 matches excluding the query object itself
             features_df['Distance'] = l2_distances + emd_distances
-            top_matches = features_df.sort_values(by='Distance').head(6)
+            top_matches = features_df.sort_values(by='Distance').iloc[1:6]  # Skip the first result (query itself)
 
-            #first show the query object seperately
-            query_model_path = os.path.join(master_folder, query_row.iloc[0]['Class'], query_shape_filename)
+            # First show the query object separately
+            query_model_path = os.path.join(obj_root_directory, query_row.iloc[0]['Class'], query_shape_filename)
             query_image = render_model(query_model_path)
-            axes[row_idx, 0].imshow(query_image)
-            axes[row_idx, 0].axis('off')
-            axes[row_idx, 0].set_title(f"{query_shape_filename}\nQuery Object", fontsize=12)
+
+            ax = fig.add_subplot(grid[row_idx, 0])
+            ax.imshow(query_image)
+            ax.axis('off')
+            ax.set_title(f"{query_shape_filename}\nQuery Object", fontsize=16)
 
             for col_idx, (_, row) in enumerate(top_matches.iterrows()):
-                if col_idx >= 6:
-                    break  #show the 5 closest matches
-
                 model_file = row['File']
                 model_class = row['Class']
                 model_distance = row['Distance']
-                model_path = os.path.join(master_folder, model_class, model_file)
+                model_path = os.path.join(obj_root_directory, model_class, model_file)
 
-                #display everything
+                # Display the retrieved object
                 model_image = render_model(model_path)
-                axes[row_idx, col_idx + 1].imshow(model_image)
-                axes[row_idx, col_idx + 1].axis('off')
-                axes[row_idx, col_idx + 1].set_title(f"{model_file}\nClass: {model_class}\nDist: {model_distance:.4f}", fontsize=12)
+                ax = fig.add_subplot(grid[row_idx, col_idx + 1])
+                ax.imshow(model_image)
+                ax.axis('off')
+                ax.set_title(f"{model_file}\nClass: {model_class}\nDist: {model_distance:.4f}", fontsize=12)
 
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Remove borders
     plt.show()
+
 
 #specify queries:
 query_shape_filenames = [

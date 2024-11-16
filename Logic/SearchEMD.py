@@ -84,6 +84,14 @@ def modelLineRetrieval(obj_file_path):
         print(f"Error processing {obj_file_path}: {e}")
         return None
 
+feature_weights = {
+    'A3': 1.0,
+    'D1': 1000.0,
+    'D2': 1000.0,
+    'D3': 1000.0,
+    'D4': 1000.0
+}
+
 def get_histogram_vector(row):
     histogram_vector = []
     for feature_prefix in ['A3', 'D1', 'D2', 'D3', 'D4']:
@@ -91,32 +99,36 @@ def get_histogram_vector(row):
         histogram_vector.extend(row[bins].values)
     return np.array(histogram_vector)
 
-def calculate_l2_distance(query_vector, features_matrix):
-    return np.sqrt(np.sum((features_matrix - query_vector) ** 2, axis=1))
+# Define the distance function using the weighted EMD and Euclidean distance
+def compute_distance(query, candidate, histogram_features, single_value_features, feature_weights):
+    # EMD for histogram features
+    weighted_emd_sum = 0
+    for feature, bins in histogram_features.items():
+        query_hist = query[bins].values
+        candidate_hist = candidate[bins].values
+        emd = wasserstein_distance(query_hist, candidate_hist)
+        weighted_emd_sum += feature_weights[feature] * emd
 
-# Calculate EMD for histogram-based features
-def calculate_emd(query_vector, features_matrix, distance_ranges):
-    emd_distances = []
-    normalized_query = query_vector / distance_ranges
-    for feature_vector in features_matrix:
-        normalized_feature_vector = feature_vector / distance_ranges
-        distance_matrix = np.ones((len(query_vector), len(query_vector))) - np.eye(len(query_vector))
-        emd_distances.append(
-            emd(normalized_query.astype(np.float64), normalized_feature_vector.astype(np.float64), distance_matrix)
-        )
-    return emd_distances
+    # Euclidean distance for single-value features
+    query_values = query[single_value_features].values
+    candidate_values = candidate[single_value_features].values
+    euclidean_dist = np.sqrt(np.sum((query_values - candidate_values) ** 2))
 
-# Precompute distance ranges for histogram features
-def calculate_distance_ranges(features_matrix):
-    ranges = []
-    for i in range(features_matrix.shape[1]):
-        feature_column = features_matrix[:, i]
-        distances = np.abs(feature_column[:, None] - feature_column)
-        range_val = np.max(distances) - np.min(distances)
-        ranges.append(range_val if range_val != 0 else 1)
-    return np.array(ranges)
+    return weighted_emd_sum + euclidean_dist
 
-def search_with_emd(path, listbox):
+# Find the closest matches using the new distance function
+def query_shape(query_id, features_df, histogram_features, single_value_features, feature_weights, top_k=10):
+    query = features_df.loc[features_df['File'] == query_id].iloc[0]
+    distances = []
+    for index, row in features_df.iterrows():
+        if row['File'] != query_id:
+            dist = compute_distance(query, row, histogram_features, single_value_features, feature_weights)
+            distances.append((row['File'], row['Class'], dist))
+    distances.sort(key=lambda x: x[2])
+    return distances[:top_k]
+
+# Adjusted search function to display results in the GUI
+def search_with_weighted_emd(path, listbox):
     obj_file_path = path
     if not obj_file_path:
         return
@@ -126,74 +138,14 @@ def search_with_emd(path, listbox):
         messagebox.showerror("Error", "Could not process the selected OBJ file.")
         return
 
+    # Append new model features temporarily to the DataFrame for querying
     query_row = pd.DataFrame([new_model_features])
-    query_vector_single = query_row[single_value_features].values.flatten()
-    query_vector_histogram = get_histogram_vector(query_row.iloc[0])
+    temp_features_df = pd.concat([features_df, query_row], ignore_index=True)
 
-    features_matrix_single = features_df[single_value_features].values
-    features_matrix_histogram = np.array([get_histogram_vector(row) for _, row in features_df.iterrows()])
+    # Perform the search with weighted EMD and Euclidean distance
+    top_matches = query_shape("0", temp_features_df, histogram_features, single_value_features, feature_weights, top_k=20)
 
-    l2_distances = calculate_l2_distance(query_vector_single, features_matrix_single)
-    distance_ranges = calculate_distance_ranges(features_matrix_histogram)
-    emd_distances = calculate_emd(query_vector_histogram, features_matrix_histogram, distance_ranges)
-
-    features_df['Distance'] = l2_distances * emd_distances
-    top_matches = features_df.sort_values(by='Distance').iloc[:20]
-
+    # Update the listbox with the top matches
     listbox.delete(0, tk.END)
-    for _, row in top_matches.iterrows():
-        listbox.insert(tk.END, f"{row['Class']} - {row['File']} (Distance: {row['Distance']:.4f})")
-
-# Extend distance ranges for global descriptors
-def calculate_distance_ranges_with_globals(features_df, single_value_features, features_matrix_histogram):
-    """Calculate distance ranges for both single-value and histogram features."""
-    # For single-value features, calculate min-max ranges
-    ranges_global = features_df[single_value_features].max() - features_df[single_value_features].min()
-    ranges_global = ranges_global.replace(0, 1)  # Avoid division by zero
-
-    # For histogram features, calculate histogram distance ranges
-    ranges_histogram = calculate_distance_ranges(features_matrix_histogram)
-
-    return ranges_global, ranges_histogram
-
-# Normalize both query and database features using ranges
-def search_with_emd_using_ranges(path, listbox):
-    global features_df  # Ensure you modify the global variable features_df
-
-    obj_file_path = path
-    if not obj_file_path:
-        return
-
-    new_model_features = modelLineRetrieval(obj_file_path)
-    if not new_model_features:
-        messagebox.showerror("Error", "Could not process the selected OBJ file.")
-        return
-
-    query_row = pd.DataFrame([new_model_features])
-
-    # Calculate distance ranges for normalization
-    features_matrix_histogram = np.array([get_histogram_vector(row) for _, row in features_df.iterrows()])
-    ranges_global, ranges_histogram = calculate_distance_ranges_with_globals(features_df, single_value_features, features_matrix_histogram)
-
-    # Normalize database and query global features using ranges
-    features_df[single_value_features] = features_df[single_value_features] / ranges_global
-    query_row[single_value_features] = query_row[single_value_features] / ranges_global
-
-    # Normalize histogram features
-    query_vector_histogram = get_histogram_vector(query_row.iloc[0]) / ranges_histogram
-    features_matrix_histogram = features_matrix_histogram / ranges_histogram
-
-    # Calculate distances
-    query_vector_single = query_row[single_value_features].values.flatten()
-    features_matrix_single = features_df[single_value_features].values
-
-    l2_distances = calculate_l2_distance(query_vector_single, features_matrix_single)
-    emd_distances = calculate_emd(query_vector_histogram, features_matrix_histogram, np.ones_like(ranges_histogram))
-
-    features_df['Distance'] = l2_distances * emd_distances
-    top_matches = features_df.sort_values(by='Distance').iloc[:20]
-
-    listbox.delete(0, tk.END)
-    for _, row in top_matches.iterrows():
-        listbox.insert(tk.END, f"{row['Class']} - {row['File']} (Distance: {row['Distance']:.4f})")
-
+    for file, class_label, dist in top_matches:
+        listbox.insert(tk.END, f"{class_label} - {file} (Distance: {dist:.4f})")

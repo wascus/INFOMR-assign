@@ -1,13 +1,10 @@
 import tkinter as tk
 from tkinter import messagebox, Listbox, filedialog
-import os
 import pandas as pd
 import numpy as np
 import open3d as o3d
-from sklearn.neighbors import KNeighborsClassifier
 from pyemd import emd
 
-from Logic.SearchEMD import search_with_emd
 from Logic.Subsampling import Subsample
 from Logic.Supersampling import Supersample
 from Logic.CleanManifold import Clean
@@ -17,31 +14,13 @@ from Logic.ShapeDescriptors import ShapeDescriptors
 from Logic.HoleFilling import HoleFilling
 from Logic.NormalizeDescriptors import normalize_features
 
-# Load feature database
 file_path = "feature_vector.csv"
 features_df = pd.read_csv(file_path)
-
-# Define single-value and histogram features
 single_value_features = [
     "Surface Area", "Volume", "Compactness", "Rectangularity", "Diameter",
     "Convexity", "Eccentricity"
 ]
-histogram_features = {
-    'A3': [f'A3_bin_{i}' for i in range(40)],
-    'D1': [f'D1_bin_{i}' for i in range(40)],
-    'D2': [f'D2_bin_{i}' for i in range(40)],
-    'D3': [f'D3_bin_{i}' for i in range(40)],
-    'D4': [f'D4_bin_{i}' for i in range(40)]
-}
-feature_columns = single_value_features + [bin for group in histogram_features.values() for bin in group]
 
-# Train k-NN model (for Script 2 functionality)
-top_k = 20
-data_matrix = features_df[feature_columns].values
-knn_model = KNeighborsClassifier(n_neighbors=top_k + 1, metric='euclidean')
-knn_model.fit(data_matrix, features_df['Class'])
-
-# Function to retrieve and normalize features from an OBJ file
 def modelLineRetrieval(obj_file_path):
     try:
         # Load and process the OBJ file
@@ -102,8 +81,6 @@ def modelLineRetrieval(obj_file_path):
         print(f"Error processing {obj_file_path}: {e}")
         return None
 
-
-# Function to extract histogram vector
 def get_histogram_vector(row):
     histogram_vector = []
     for feature_prefix in ['A3', 'D1', 'D2', 'D3', 'D4']:
@@ -111,53 +88,55 @@ def get_histogram_vector(row):
         histogram_vector.extend(row[bins].values)
     return np.array(histogram_vector)
 
-# Button 1: Search with EMD logic (as per provided script)
+def calculate_l2_distance(query_vector, features_matrix):
+    return np.sqrt(np.sum((features_matrix - query_vector) ** 2, axis=1))
 
-obj_file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
+# Calculate EMD for histogram-based features
+def calculate_emd(query_vector, features_matrix, distance_ranges):
+    emd_distances = []
+    normalized_query = query_vector / distance_ranges
+    for feature_vector in features_matrix:
+        normalized_feature_vector = feature_vector / distance_ranges
+        distance_matrix = np.ones((len(query_vector), len(query_vector))) - np.eye(len(query_vector))
+        emd_distances.append(
+            emd(normalized_query.astype(np.float64), normalized_feature_vector.astype(np.float64), distance_matrix)
+        )
+    return emd_distances
 
+# Precompute distance ranges for histogram features
+def calculate_distance_ranges(features_matrix):
+    ranges = []
+    for i in range(features_matrix.shape[1]):
+        feature_column = features_matrix[:, i]
+        distances = np.abs(feature_column[:, None] - feature_column)
+        range_val = np.max(distances) - np.min(distances)
+        ranges.append(range_val if range_val != 0 else 1)
+    return np.array(ranges)
 
-def search_emd():
-    obj_file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
-    search_with_emd(obj_file_path, listbox)
-
-# Button 2: Search with k-NN (unchanged)
-def search_knn():
-    obj_file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
+def search_with_emd(path, listbox):
+    obj_file_path = path
     if not obj_file_path:
         return
 
-    features = modelLineRetrieval(obj_file_path)
-    if not features:
-        messagebox.showerror("Error", "Failed to process the selected OBJ file.")
+    new_model_features = modelLineRetrieval(obj_file_path)
+    if not new_model_features:
+        messagebox.showerror("Error", "Could not process the selected OBJ file.")
         return
 
-    query_vector = np.array([features[col] for col in feature_columns]).reshape(1, -1)
-    distances, indices = knn_model.kneighbors(query_vector)
+    query_row = pd.DataFrame([new_model_features])
+    query_vector_single = query_row[single_value_features].values.flatten()
+    query_vector_histogram = get_histogram_vector(query_row.iloc[0])
+
+    features_matrix_single = features_df[single_value_features].values
+    features_matrix_histogram = np.array([get_histogram_vector(row) for _, row in features_df.iterrows()])
+
+    l2_distances = calculate_l2_distance(query_vector_single, features_matrix_single)
+    distance_ranges = calculate_distance_ranges(features_matrix_histogram)
+    emd_distances = calculate_emd(query_vector_histogram, features_matrix_histogram, distance_ranges)
+
+    features_df['Distance'] = l2_distances + emd_distances
+    top_matches = features_df.sort_values(by='Distance').iloc[:20]
 
     listbox.delete(0, tk.END)
-    for idx, (distance, index) in enumerate(zip(distances[0], indices[0])):
-        if idx == 0:
-            continue
-        matched_file = features_df.iloc[index]['File']
-        matched_class = features_df.iloc[index]['Class']
-        listbox.insert(tk.END, f"{matched_class} - {matched_file} (Distance: {distance:.4f})")
-
-# GUI Creation
-def create_gui():
-    global listbox
-
-    root = tk.Tk()
-    root.title("3D Model Search")
-
-    tk.Label(root, text="3D Model Search Tool").pack(pady=5)
-
-    tk.Button(root, text="Search with EMD", command=search_emd).pack(pady=10)
-    tk.Button(root, text="Search with k-NN", command=search_knn).pack(pady=10)
-
-    listbox = Listbox(root, width=80, height=20)
-    listbox.pack(pady=10)
-
-    root.mainloop()
-
-if __name__ == "__main__":
-    create_gui()
+    for _, row in top_matches.iterrows():
+        listbox.insert(tk.END, f"{row['Class']} - {row['File']} (Distance: {row['Distance']:.4f})")

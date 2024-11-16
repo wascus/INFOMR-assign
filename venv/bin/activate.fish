@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/wascus/Documents/Università/UU/Multimedia Retrieval/assignment/venv"
+set -gx VIRTUAL_ENV "/Users/wascus/Documents/Università/UU/Multimedia Retrieval/INFOMR-assign/venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

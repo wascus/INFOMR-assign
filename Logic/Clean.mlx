@@ -1,0 +1,8 @@
+<!DOCTYPE FilterScript>
+<FilterScript>
+ <filter name="Remove Duplicate Vertices"/>
+ <filter name="Remove Duplicate Faces"/>
+ <filter name="Repair non Manifold Edges">
+  <Param enum_cardinality="2" tooltip="Selects whether to remove non manifold edges by removing faces or by splitting vertices." enum_val1="Split Vertices" name="method" type="RichEnum" enum_val0="Remove Faces" value="0" description="Method"/>
+ </filter>
+</FilterScript>

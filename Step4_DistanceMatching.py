@@ -8,9 +8,9 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.gridspec as gridspec
 
 #load everything
-file_path = "/Users/maggiemaliszewski/Desktop/ToGitHub/feature_vector.csv"
+file_path = "feature_vector.csv"
 features_df = pd.read_csv(file_path)
-obj_root_directory = "/Users/maggiemaliszewski/Desktop/ToGitHub/ShapeDatabase_processed"
+obj_root_directory = "ShapeDatabase_INFOMR-master"
 
 
 single_value_features = [
@@ -134,8 +134,6 @@ def search_and_display_multiple(query_shape_filenames):
 
 #specify queries:
 query_shape_filenames = [
-    "m1476.obj",
-    "D01138.obj",
-    "m1601.obj",
+    "D00078.obj"
 ]
 search_and_display_multiple(query_shape_filenames)

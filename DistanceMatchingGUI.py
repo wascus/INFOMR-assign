@@ -1,90 +1,99 @@
-import pandas as pd
-import numpy as np
-from pyemd import emd
 import tkinter as tk
 from tkinter import messagebox, Listbox, filedialog
-import open3d as o3d
 import os
+import pandas as pd
+import numpy as np
+import open3d as o3d
+from sklearn.neighbors import KNeighborsClassifier
+from pyemd import emd
+
+# Additional imports
 from Logic.Subsampling import Subsample
 from Logic.Supersampling import Supersample
 from Logic.CleanManifold import Clean
 from Logic.Normalize import Normalize
+from Logic.GlobalDescriptors import GlobalDescriptors
+from Logic.ShapeDescriptors import ShapeDescriptors
+from Logic.HoleFilling import HoleFilling
+from Logic.NormalizeDescriptors import normalize_features
 
-# Load the normalized features from the provided CSV file
-file_path = "merged_normalized_features_combined.csv"
+# Load feature database
+file_path = "feature_vector.csv"
 features_df = pd.read_csv(file_path)
 
-# Define the columns representing the features
-feature_columns = [
+# Define single-value and histogram features
+single_value_features = [
     "Surface Area", "Volume", "Compactness", "Rectangularity", "Diameter",
-    "Convexity", "Eccentricity", "A3", "D1", "D2", "D3", "D4"
+    "Convexity", "Eccentricity"
 ]
+histogram_features = {
+    'A3': [f'A3_bin_{i}' for i in range(40)],
+    'D1': [f'D1_bin_{i}' for i in range(40)],
+    'D2': [f'D2_bin_{i}' for i in range(40)],
+    'D3': [f'D3_bin_{i}' for i in range(40)],
+    'D4': [f'D4_bin_{i}' for i in range(40)]
+}
+feature_columns = single_value_features + [bin for group in histogram_features.values() for bin in group]
 
+# Train k-NN model (for Script 2 functionality)
+top_k = 20
+data_matrix = features_df[feature_columns].values
+knn_model = KNeighborsClassifier(n_neighbors=top_k + 1, metric='euclidean')
+knn_model.fit(data_matrix, features_df['Class'])
 
-# Precompute distance ranges per feature for distance normalization
-def calculate_distance_ranges(features_matrix):
-    ranges = []
-    for i in range(features_matrix.shape[1]):
-        feature_column = features_matrix[:, i]
-        distances = np.abs(feature_column[:, None] - feature_column)  # Pairwise distances
-        range_val = np.max(distances) - np.min(distances)  # Range of distances for this feature
-        ranges.append(range_val if range_val != 0 else 1)  # Avoid division by zero
-    return np.array(ranges)
-
-
-# Feature extraction method for the model line retrieval
+# Function to retrieve and normalize features from an OBJ file
 def modelLineRetrieval(obj_file_path):
     try:
-        # Load the OBJ file into an Open3D mesh
+        # Load and process the OBJ file
         mesh = o3d.io.read_triangle_mesh(obj_file_path)
         if not mesh.has_vertex_normals():
             mesh.compute_vertex_normals()
 
-        # Step 2: Resample
         num_faces = len(mesh.triangles)
         if num_faces > 13000:
-            mesh = Subsample(mesh)  # Placeholder for decimate function
+            mesh = Subsample(mesh)
         elif num_faces < 9000:
-            mesh = Supersample(mesh)  # Placeholder for subdivide function
-        else:
-            mesh = Clean(mesh)  # Placeholder for clean function
+            mesh = Supersample(mesh)
 
-        # Step 3: Normalize
+        mesh = Clean(mesh)
         mesh = Normalize(mesh)
+        mesh = HoleFilling(mesh)
 
-        #Step 4: HoleFilling
+        global_descriptors = GlobalDescriptors(mesh)
+        shape_descriptors = ShapeDescriptors(mesh)
 
-        #Step 5: Get
+        a3_values = [row[2] for row in shape_descriptors]
+        d1_values = [row[3] for row in shape_descriptors]
+        d2_values = [row[4] for row in shape_descriptors]
+        d3_values = [row[5] for row in shape_descriptors]
+        d4_values = [row[6] for row in shape_descriptors]
 
-        # Extract various features (implementations will be handled by another script)
-        surface_area = calculate_surface_area(mesh)  # Placeholder function
-        volume = calculate_volume(mesh)  # Placeholder function
-        compactness = calculate_compactness(surface_area, volume)  # Placeholder function
-        rectangularity = calculate_rectangularity(mesh)  # Placeholder function
-        diameter = calculate_diameter(mesh)  # Placeholder function
-        convexity = calculate_convexity(mesh)  # Placeholder function
-        eccentricity = calculate_eccentricity(mesh)  # Placeholder function
-        a3 = calculate_a3_descriptor(mesh)  # Placeholder function
-        d1 = calculate_d1_descriptor(mesh)  # Placeholder function
-        d2 = calculate_d2_descriptor(mesh)  # Placeholder function
-        d3 = calculate_d3_descriptor(mesh)  # Placeholder function
-        d4 = calculate_d4_descriptor(mesh)  # Placeholder function
+        features = normalize_features("0", global_descriptors, a3_values, d1_values, d2_values, d3_values, d4_values)
 
-        # Create a dictionary with all features (matching the format of the CSV)
+        # Expand histogram features into individual columns
+        histogram_features = {}
+        for i, value in enumerate(features["A3"]):
+            histogram_features[f"A3_bin_{i}"] = value
+        for i, value in enumerate(features["D1"]):
+            histogram_features[f"D1_bin_{i}"] = value
+        for i, value in enumerate(features["D2"]):
+            histogram_features[f"D2_bin_{i}"] = value
+        for i, value in enumerate(features["D3"]):
+            histogram_features[f"D3_bin_{i}"] = value
+        for i, value in enumerate(features["D4"]):
+            histogram_features[f"D4_bin_{i}"] = value
+
+        # Merge global and histogram features
         new_model_features = {
-            "File": "D00514.obj",
-            "Surface Area": -0.056155981531512834,
-            "Volume": -0.32927574454562075,
-            "Compactness": -0.3042277698177236,
-            "Rectangularity": -0.5003597158421492,
-            "Diameter": 0.6695249597165905,
-            "Convexity": -0.5530466625113731,
-            "Eccentricity": 0.0009485357542467816,
-            "A3": 0.9676700183196667,
-            "D1": 0.4614996880820569,
-            "D2": 0.4585949265216225,
-            "D3": 0.14833945121559433,
-            "D4": 0.2661606466514979
+            "File": "0",
+            "Surface Area": features["Surface Area"],
+            "Volume": features["Volume"],
+            "Compactness": features["Compactness"],
+            "Rectangularity": features["Rectangularity"],
+            "Diameter": features["Diameter"],
+            "Convexity": features["Convexity"],
+            "Eccentricity": features["Eccentricity"],
+            **histogram_features
         }
 
         return new_model_features
@@ -93,145 +102,107 @@ def modelLineRetrieval(obj_file_path):
         print(f"Error processing {obj_file_path}: {e}")
         return None
 
+# Calculate L2 distance
+def calculate_l2_distance(query_vector, features_matrix):
+    return np.sqrt(np.sum((features_matrix - query_vector) ** 2, axis=1))
 
-# Calculate EMD with distance weighting
+# Calculate EMD for histogram-based features
 def calculate_emd(query_vector, features_matrix, distance_ranges):
-    distance_matrix = np.ones((len(query_vector), len(query_vector))) - np.eye(len(query_vector))
     emd_distances = []
+    normalized_query = query_vector / distance_ranges
     for feature_vector in features_matrix:
-        # Apply distance weighting by dividing each feature by its precomputed range
-        normalized_query = query_vector / distance_ranges
         normalized_feature_vector = feature_vector / distance_ranges
+        distance_matrix = np.ones((len(query_vector), len(query_vector))) - np.eye(len(query_vector))
         emd_distances.append(
             emd(normalized_query.astype(np.float64), normalized_feature_vector.astype(np.float64), distance_matrix)
         )
     return emd_distances
 
+# Precompute distance ranges for histogram features
+def calculate_distance_ranges(features_matrix):
+    ranges = []
+    for i in range(features_matrix.shape[1]):
+        feature_column = features_matrix[:, i]
+        distances = np.abs(feature_column[:, None] - feature_column)
+        range_val = np.max(distances) - np.min(distances)
+        ranges.append(range_val if range_val != 0 else 1)
+    return np.array(ranges)
 
-# Search for similar models
-def search_similar_models():
-    # Check if an OBJ file has been selected
-    if not current_file_path or not current_file_path.endswith(".obj"):
-        messagebox.showerror("Error", "Please select a valid OBJ file.")
+# Function to extract histogram vector
+def get_histogram_vector(row):
+    histogram_vector = []
+    for feature_prefix in ['A3', 'D1', 'D2', 'D3', 'D4']:
+        bins = [f'{feature_prefix}_bin_{i}' for i in range(40)]
+        histogram_vector.extend(row[bins].values)
+    return np.array(histogram_vector)
+
+# Button 1: Search with EMD logic (as per provided script)
+def search_emd():
+    obj_file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
+    if not obj_file_path:
         return
 
-    # Run modelLineRetrieval to get the extracted features from the input OBJ file
-    new_model_features = modelLineRetrieval(current_file_path)
-
+    new_model_features = modelLineRetrieval(obj_file_path)
     if not new_model_features:
-        messagebox.showerror("Error", "Could not extract features from the provided OBJ file.")
+        messagebox.showerror("Error", "Could not process the selected OBJ file.")
         return
 
-    # Convert the dictionary of features to a DataFrame for comparison
     query_row = pd.DataFrame([new_model_features])
+    query_vector_single = query_row[single_value_features].values.flatten()
+    query_vector_histogram = get_histogram_vector(query_row.iloc[0])
 
-    # Extract the feature values for the query
-    query_vector = query_row[feature_columns].values.flatten()
-    features_matrix = features_df[feature_columns].values
+    features_matrix_single = features_df[single_value_features].values
+    features_matrix_histogram = np.array([get_histogram_vector(row) for _, row in features_df.iterrows()])
 
-    # Calculate distance ranges for each feature in the dataset
-    distance_ranges = calculate_distance_ranges(features_matrix)
+    l2_distances = calculate_l2_distance(query_vector_single, features_matrix_single)
+    distance_ranges = calculate_distance_ranges(features_matrix_histogram)
+    emd_distances = calculate_emd(query_vector_histogram, features_matrix_histogram, distance_ranges)
 
-    # Calculate EMD distances with distance weighting
-    emd_distances = calculate_emd(query_vector, features_matrix, distance_ranges)
-    features_df['Distance'] = emd_distances
+    features_df['Distance'] = l2_distances + emd_distances
+    top_matches = features_df.sort_values(by='Distance').iloc[:20]
 
-    # Sort by distance and get the top 20 matches
-    top_matches = features_df.sort_values(by='Distance').iloc[:20]  # Get the top 20 closest matches
-
-    # Update the listbox with the results
     listbox.delete(0, tk.END)
-    for idx, row in top_matches.iterrows():
+    for _, row in top_matches.iterrows():
         listbox.insert(tk.END, f"{row['Class']} - {row['File']} (Distance: {row['Distance']:.4f})")
 
+# Button 2: Search with k-NN (unchanged)
+def search_knn():
+    obj_file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
+    if not obj_file_path:
+        return
 
-# Open file dialog to select OBJ file
-def browse_file():
-    global current_file_path
-    # Open a file dialog to select an OBJ file
-    file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
-    if file_path:
-        current_file_path = file_path
-        entry.config(state="normal")
-        entry.delete(0, tk.END)
-        entry.insert(0, os.path.basename(file_path))
-        entry.config(state="readonly")
+    features = modelLineRetrieval(obj_file_path)
+    if not features:
+        messagebox.showerror("Error", "Failed to process the selected OBJ file.")
+        return
 
+    query_vector = np.array([features[col] for col in feature_columns]).reshape(1, -1)
+    distances, indices = knn_model.kneighbors(query_vector)
+
+    listbox.delete(0, tk.END)
+    for idx, (distance, index) in enumerate(zip(distances[0], indices[0])):
+        if idx == 0:
+            continue
+        matched_file = features_df.iloc[index]['File']
+        matched_class = features_df.iloc[index]['Class']
+        listbox.insert(tk.END, f"{matched_class} - {matched_file} (Distance: {distance:.4f})")
 
 # GUI Creation
 def create_gui():
-    global entry, listbox, current_file_path
+    global listbox
 
     root = tk.Tk()
-    root.title("3D Model Search Using EMD with Open3D Viewer")
+    root.title("3D Model Search")
 
-    # Add input field, browse button, and search button
-    tk.Label(root, text="Select OBJ File:").pack(pady=5)
-    entry = tk.Entry(root, state="readonly")
-    entry.pack(pady=5)
+    tk.Label(root, text="3D Model Search Tool").pack(pady=5)
 
-    browse_button = tk.Button(root, text="Browse", command=browse_file)
-    browse_button.pack(pady=5)
+    tk.Button(root, text="Search with EMD", command=search_emd).pack(pady=10)
+    tk.Button(root, text="Search with k-NN", command=search_knn).pack(pady=10)
 
-    search_button = tk.Button(root, text="Search", command=search_similar_models)
-    search_button.pack(pady=5)
-
-    # Add a listbox to display the top 20 results
     listbox = Listbox(root, width=80, height=20)
     listbox.pack(pady=10)
 
     root.mainloop()
-
-
-# Placeholder utility functions for feature calculations
-# Implementations will be handled by another script, and these are just placeholders for now
-def calculate_surface_area(mesh):
-    pass
-
-
-def calculate_volume(mesh):
-    pass
-
-
-def calculate_compactness(surface_area, volume):
-    pass
-
-
-def calculate_rectangularity(mesh):
-    pass
-
-
-def calculate_diameter(mesh):
-    pass
-
-
-def calculate_convexity(mesh):
-    pass
-
-
-def calculate_eccentricity(mesh):
-    pass
-
-
-def calculate_a3_descriptor(mesh):
-    pass
-
-
-def calculate_d1_descriptor(mesh):
-    pass
-
-
-def calculate_d2_descriptor(mesh):
-    pass
-
-
-def calculate_d3_descriptor(mesh):
-    pass
-
-
-def calculate_d4_descriptor(mesh):
-    pass
-
 
 if __name__ == "__main__":
     create_gui()

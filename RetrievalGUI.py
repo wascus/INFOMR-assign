@@ -161,7 +161,7 @@ def create_gui():
 
     tk.Label(root, text="3D Model Search Tool").pack(pady=5)
 
-    tk.Button(root, text="Search with EMD", command=search_emd).pack(pady=10)
+    tk.Button(root, text="Search with EMD/Euc", command=search_emd).pack(pady=10)
     tk.Button(root, text="Search with k-NN", command=search_knn).pack(pady=10)
 
     listbox = Listbox(root, width=80, height=20)

@@ -7,7 +7,7 @@ import open3d as o3d
 from sklearn.neighbors import KNeighborsClassifier
 from pyemd import emd
 
-from Logic.SearchEMD import search_with_emd, search_with_emd_using_ranges
+from Logic.SearchEMD import search_with_weighted_emd
 from Logic.Subsampling import Subsample
 from Logic.Supersampling import Supersample
 from Logic.CleanManifold import Clean
@@ -96,6 +96,8 @@ def modelLineRetrieval(obj_file_path):
             **histogram_features
         }
 
+        print("-----------------------------------")
+        print(new_model_features)
         return new_model_features
 
     except Exception as e:
@@ -115,7 +117,7 @@ def get_histogram_vector(row):
 
 def search_emd():
     obj_file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
-    search_with_emd(obj_file_path, listbox)
+    search_with_weighted_emd(obj_file_path, listbox)
 
 # Button 2: Search with k-NN (unchanged)
 def search_knn():

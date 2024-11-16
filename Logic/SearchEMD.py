@@ -7,6 +7,7 @@ from pyemd import emd
 import os
 import pickle
 from scipy.spatial.distance import pdist
+from scipy.stats import wasserstein_distance
 
 from Logic.Subsampling import Subsample
 from Logic.Supersampling import Supersample
@@ -23,6 +24,13 @@ single_value_features = [
     "Surface Area", "Volume", "Compactness", "Rectangularity", "Diameter",
     "Convexity", "Eccentricity"
 ]
+histogram_features = {
+    'A3': [f'A3_bin_{i}' for i in range(40)],
+    'D1': [f'D1_bin_{i}' for i in range(40)],
+    'D2': [f'D2_bin_{i}' for i in range(40)],
+    'D3': [f'D3_bin_{i}' for i in range(40)],
+    'D4': [f'D4_bin_{i}' for i in range(40)]
+}
 
 def modelLineRetrieval(obj_file_path):
     try:
@@ -114,7 +122,7 @@ def compute_distance(query, candidate, histogram_features, single_value_features
     candidate_values = candidate[single_value_features].values
     euclidean_dist = np.sqrt(np.sum((query_values - candidate_values) ** 2))
 
-    return weighted_emd_sum + euclidean_dist
+    return weighted_emd_sum * euclidean_dist
 
 # Find the closest matches using the new distance function
 def query_shape(query_id, features_df, histogram_features, single_value_features, feature_weights, top_k=10):

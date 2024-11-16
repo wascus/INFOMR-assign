@@ -19,6 +19,14 @@ from Logic.NormalizeDescriptors import normalize_features
 # Load feature database
 file_path = "feature_vector.csv"
 features_df = pd.read_csv(file_path)
+master_folder = "ShapeDatabase_INFOMR-master"
+
+vis = None  # Global variable for the Open3D visualizer
+current_file_path = None  # Path to the currently loaded model
+interactive_mode = False  # Mode for Open3D visualizer
+axes_shown = False  # Tracks whether the world axes are displayed
+vis_option = "smoothshade"  # Default visualization mode
+background_color = [1, 1, 1]  # Default background color (white)
 
 # Define single-value and histogram features
 single_value_features = [
@@ -39,6 +47,7 @@ top_k = 20
 data_matrix = features_df[feature_columns].values
 knn_model = KNeighborsClassifier(n_neighbors=top_k + 1, metric='euclidean')
 knn_model.fit(data_matrix, features_df['Class'])
+
 
 # Function to retrieve and normalize features from an OBJ file
 def modelLineRetrieval(obj_file_path):
@@ -112,11 +121,13 @@ def get_histogram_vector(row):
         histogram_vector.extend(row[bins].values)
     return np.array(histogram_vector)
 
+
 # Button 1: Search with EMD logic (as per provided script)
 
 def search_emd():
     obj_file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
     search_with_weighted_emd(obj_file_path, listbox)
+
 
 # Button 2: Search with k-NN (unchanged)
 def search_knn():
@@ -140,9 +151,10 @@ def search_knn():
         matched_class = features_df.iloc[index]['Class']
         listbox.insert(tk.END, f"{matched_class} - {matched_file} (Distance: {distance:.4f})")
 
+
 # GUI Creation
 def create_gui():
-    global listbox
+    global listbox, vis, mode_button, current_file_path
 
     root = tk.Tk()
     root.title("3D Model Search")
@@ -154,8 +166,157 @@ def create_gui():
 
     listbox = Listbox(root, width=80, height=20)
     listbox.pack(pady=10)
+    listbox.bind('<<ListboxSelect>>', on_model_select)
+
+    # Visualization control buttons at the bottom of the window
+    control_frame = tk.Frame(root)
+    control_frame.pack(pady=10, fill=tk.X)
+
+    tk.Button(control_frame, text="Smooth Shade", command=lambda: set_vis_option("smoothshade")).pack(side=tk.LEFT,
+                                                                                                      padx=5)
+    tk.Button(control_frame, text="Wireframe", command=lambda: set_vis_option("wireframe")).pack(side=tk.LEFT, padx=5)
+    tk.Button(control_frame, text="Wireframe on Shaded", command=lambda: set_vis_option("wireframe_on_shaded")).pack(
+        side=tk.LEFT, padx=5)
+    tk.Button(control_frame, text="World Axes", command=lambda: set_vis_option("world_axes")).pack(side=tk.LEFT, padx=5)
+    tk.Button(control_frame, text="Toggle Background", command=toggle_background).pack(side=tk.LEFT, padx=5)
+
+    additional_control_frame = tk.Frame(root)
+    additional_control_frame.pack(pady=10, fill=tk.X)
+
+    mode_button = tk.Button(additional_control_frame, text="Switch to Interactive", command=toggle_mode)
+    mode_button.pack(side=tk.LEFT, padx=5)
+    tk.Button(additional_control_frame, text="Turn Off Viewer", command=turn_off_visualizer).pack(side=tk.LEFT, padx=5)
+    tk.Button(additional_control_frame, text="Reset", command=reset_viewer).pack(side=tk.LEFT, padx=5)
 
     root.mainloop()
+
+
+def on_model_select(event):
+    global current_file_path
+
+    selected_idx = listbox.curselection()
+    if selected_idx:
+        selected_item = listbox.get(selected_idx[0])
+
+        # Extract class and model file name from the listbox item
+        try:
+            class_name = selected_item.split(' ')[0]
+            model_file = selected_item.split(' - ')[1].split(' (')[0]
+
+            # Construct the full path to the model
+            model_path = os.path.join(master_folder, class_name, model_file)
+
+            # Check if the file exists before attempting to load
+            if os.path.exists(model_path):
+                current_file_path = model_path
+                load_and_view_model(model_path)
+            else:
+                messagebox.showerror("Error", f"Model file '{model_path}' not found.")
+        except IndexError:
+            messagebox.showerror("Error", "Could not parse the selected item. Please check the list format.")
+
+
+def set_vis_option(option):
+    global vis_option, axes_shown
+    vis_option = option
+
+    if current_file_path:
+        if option == "world_axes":
+            axes_shown = not axes_shown  # Toggle axes visibility
+        load_and_view_model(current_file_path)
+
+
+def load_and_view_model(file_path):
+    global vis, interactive_mode, vis_option, background_color, axes_shown
+
+    if vis is None:
+        vis = o3d.visualization.Visualizer()
+        vis.create_window(window_name="3D Model Viewer", width=800, height=600)
+
+    mesh = o3d.io.read_triangle_mesh(file_path)
+    if not mesh.has_vertex_normals():
+        mesh.compute_vertex_normals()
+
+    mesh = normalize_mesh(mesh)
+
+    # Clear geometries
+    vis.clear_geometries()
+
+    # Handle visual options
+    if vis_option == "smoothshade":
+        vis.add_geometry(mesh)
+        vis.get_render_option().mesh_show_wireframe = False
+    elif vis_option == "wireframe":
+        vis.add_geometry(mesh)
+        vis.get_render_option().mesh_show_wireframe = True
+        vis.get_render_option().mesh_show_back_face = False
+        mesh.paint_uniform_color([0, 1, 1])  # Set wireframe color (optional)
+    elif vis_option == "wireframe_on_shaded":
+        vis.add_geometry(mesh)
+        vis.get_render_option().mesh_show_wireframe = True
+        vis.get_render_option().mesh_show_back_face = True
+    elif vis_option == "world_axes":
+        if axes_shown:
+            axes = o3d.geometry.TriangleMesh.create_coordinate_frame(size=0.5)
+            vis.add_geometry(axes)
+
+    # Set render options
+    opt = vis.get_render_option()
+    opt.background_color = np.asarray(background_color)
+
+    # Render the model
+    if interactive_mode:
+        vis.run()
+        vis.destroy_window()
+        vis = None
+    else:
+        vis.poll_events()
+        vis.update_renderer()
+
+
+def normalize_mesh(mesh):
+    bbox = mesh.get_axis_aligned_bounding_box()
+    center = bbox.get_center()
+    mesh.translate(-center)
+    extent = bbox.get_extent()
+    scale_factor = 1.0 / max(extent)
+    mesh.scale(scale_factor, center=[0, 0, 0])
+    return mesh
+
+
+def toggle_mode():
+    global interactive_mode
+    interactive_mode = not interactive_mode
+    mode_button.config(text="Switch to Interactive" if not interactive_mode else "Switch to Automatic")
+
+
+def set_vis_option(option):
+    global vis_option
+    vis_option = option
+    if current_file_path:
+        load_and_view_model(current_file_path)
+
+
+def toggle_background():
+    global background_color
+    background_color = [0, 0, 0] if background_color == [1, 1, 1] else [1, 1, 1]
+    if current_file_path:
+        load_and_view_model(current_file_path)
+
+
+def turn_off_visualizer():
+    global vis
+    if vis:
+        vis.destroy_window()
+        vis = None
+
+
+def reset_viewer():
+    global current_file_path
+    listbox.delete(0, tk.END)
+    current_file_path = None
+    turn_off_visualizer()
+
 
 if __name__ == "__main__":
     create_gui()

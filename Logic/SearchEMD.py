@@ -4,6 +4,9 @@ import pandas as pd
 import numpy as np
 import open3d as o3d
 from pyemd import emd
+import os
+import pickle
+from scipy.spatial.distance import pdist
 
 from Logic.Subsampling import Subsample
 from Logic.Supersampling import Supersample
@@ -134,9 +137,63 @@ def search_with_emd(path, listbox):
     distance_ranges = calculate_distance_ranges(features_matrix_histogram)
     emd_distances = calculate_emd(query_vector_histogram, features_matrix_histogram, distance_ranges)
 
-    features_df['Distance'] = l2_distances + emd_distances
+    features_df['Distance'] = l2_distances * emd_distances
     top_matches = features_df.sort_values(by='Distance').iloc[:20]
 
     listbox.delete(0, tk.END)
     for _, row in top_matches.iterrows():
         listbox.insert(tk.END, f"{row['Class']} - {row['File']} (Distance: {row['Distance']:.4f})")
+
+# Extend distance ranges for global descriptors
+def calculate_distance_ranges_with_globals(features_df, single_value_features, features_matrix_histogram):
+    """Calculate distance ranges for both single-value and histogram features."""
+    # For single-value features, calculate min-max ranges
+    ranges_global = features_df[single_value_features].max() - features_df[single_value_features].min()
+    ranges_global = ranges_global.replace(0, 1)  # Avoid division by zero
+
+    # For histogram features, calculate histogram distance ranges
+    ranges_histogram = calculate_distance_ranges(features_matrix_histogram)
+
+    return ranges_global, ranges_histogram
+
+# Normalize both query and database features using ranges
+def search_with_emd_using_ranges(path, listbox):
+    global features_df  # Ensure you modify the global variable features_df
+
+    obj_file_path = path
+    if not obj_file_path:
+        return
+
+    new_model_features = modelLineRetrieval(obj_file_path)
+    if not new_model_features:
+        messagebox.showerror("Error", "Could not process the selected OBJ file.")
+        return
+
+    query_row = pd.DataFrame([new_model_features])
+
+    # Calculate distance ranges for normalization
+    features_matrix_histogram = np.array([get_histogram_vector(row) for _, row in features_df.iterrows()])
+    ranges_global, ranges_histogram = calculate_distance_ranges_with_globals(features_df, single_value_features, features_matrix_histogram)
+
+    # Normalize database and query global features using ranges
+    features_df[single_value_features] = features_df[single_value_features] / ranges_global
+    query_row[single_value_features] = query_row[single_value_features] / ranges_global
+
+    # Normalize histogram features
+    query_vector_histogram = get_histogram_vector(query_row.iloc[0]) / ranges_histogram
+    features_matrix_histogram = features_matrix_histogram / ranges_histogram
+
+    # Calculate distances
+    query_vector_single = query_row[single_value_features].values.flatten()
+    features_matrix_single = features_df[single_value_features].values
+
+    l2_distances = calculate_l2_distance(query_vector_single, features_matrix_single)
+    emd_distances = calculate_emd(query_vector_histogram, features_matrix_histogram, np.ones_like(ranges_histogram))
+
+    features_df['Distance'] = l2_distances * emd_distances
+    top_matches = features_df.sort_values(by='Distance').iloc[:20]
+
+    listbox.delete(0, tk.END)
+    for _, row in top_matches.iterrows():
+        listbox.insert(tk.END, f"{row['Class']} - {row['File']} (Distance: {row['Distance']:.4f})")
+

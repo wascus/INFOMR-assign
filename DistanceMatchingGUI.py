@@ -7,7 +7,7 @@ import open3d as o3d
 from sklearn.neighbors import KNeighborsClassifier
 from pyemd import emd
 
-from Logic.SearchEMD import search_with_emd
+from Logic.SearchEMD import search_with_emd, search_with_emd_using_ranges
 from Logic.Subsampling import Subsample
 from Logic.Supersampling import Supersample
 from Logic.CleanManifold import Clean
@@ -112,9 +112,6 @@ def get_histogram_vector(row):
     return np.array(histogram_vector)
 
 # Button 1: Search with EMD logic (as per provided script)
-
-obj_file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])
-
 
 def search_emd():
     obj_file_path = filedialog.askopenfilename(filetypes=[("OBJ Files", "*.obj")])

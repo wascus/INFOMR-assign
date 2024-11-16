@@ -1,14 +1,18 @@
 # INFOMR-assign
 
 **STEP 1**  
+_Step1_Open3dViewer.py:_ code for Step1, simple Viewer
 
 **STEP 2**   
 _Step2_ShapeAnalysis.py:_ code for Step2.1, analyzes a single shape in the database  
 _Shape2_DatabaseStatistics.py:_ code for Step2.2, calculates shape statistics over the entire database  
+_Step2_SubSamplePyMeshLab.py:_ code for Step2, processes a folder of shapes for decimation
+_Step2_SuperSamplingPyMeshLab.py:_ code for Step2, processes a folder of shapes for subdivision
 
 **STEP 3**   
 _Step3_HoleFilling.py:_ hole filling using three methods  
 _Step3_GlobalPropertyDescriptors.py:_ calculating the global property descriptors   
+_Step3_ShapePropertyDescriptors.py:_ calculating the shape property descriptors 
 
 _global_property_descriptors.csv:_ file containing the calculated global property descriptors  
 _global_property_descriptor_statistics.xlsx:_ file containing statistics about the global property descriptors, calculated using AdditionalFiles_ComputeAverages.py   

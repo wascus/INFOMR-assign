@@ -15,12 +15,14 @@ _global_property_descriptor_statistics.xlsx:_ file containing statistics about t
 
 **STEP 4**  
 _Step4_FeatureNormalization.py:_ feature normalization (both single-value and histogram features), and combining everything into a feature vector  
-_Step4_DistanceMatching.py:_ simple version of distance matching, produces an image with the top 5 results for a query and their distance
+_Step4_DistanceMatchingNew.py:_ simple version of distance matching, results are printed in the console
 _Step4_DistanceMatching_GUI.py:_ interractive version of the distance matching file with a GUI   
 
 _feature_vector.csv:_ combined feature vector with normalized single-value and histogram features  
 
 **STEP 5**  
+_Step4_DistanceMatching.py:_ simple version of KNN, produces an image with the top 5 results for a query and their distance
+_Step5_KNN_GUI.py_: interractive version of the KNN search file with a GUI  
 _Step5_tSNE.py_: code for performing dimensionality reduction using t-SNE   
 
 **STEP 6**  

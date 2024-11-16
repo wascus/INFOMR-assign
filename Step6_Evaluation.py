@@ -206,9 +206,7 @@ query_features_list = [
 
 
 def compute_distance(query, candidate, histogram_features, single_value_features, feature_weights):
-    """
-    Compute the weighted EMD and Euclidean distance between two shapes.
-    """
+
     # EMD for histogram features
     weighted_emd_sum = 0
     for feature, bins in histogram_features.items():
@@ -226,9 +224,7 @@ def compute_distance(query, candidate, histogram_features, single_value_features
 
 
 def query_shape(query_features, database_df, histogram_features, single_value_features, feature_weights, top_k=10):
-    """
-    Query the K-nearest neighbors from the database for a given query shape.
-    """
+
     distances = []
     for _, row in database_df.iterrows():
         dist = compute_distance(query_features, row, histogram_features, single_value_features, feature_weights)
@@ -238,9 +234,7 @@ def query_shape(query_features, database_df, histogram_features, single_value_fe
 
 
 def evaluate_query(query_features, database_df, histogram_features, single_value_features, feature_weights, top_k=10):
-    """
-    Evaluate precision and accuracy for a single query.
-    """
+
     query_label = query_features['Class']
     top_matches = query_shape(query_features, database_df, histogram_features, single_value_features, feature_weights,
                               top_k)

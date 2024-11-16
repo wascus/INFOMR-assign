@@ -20,30 +20,19 @@ face_bin_size = (max_faces - min_faces) / num_bins
 valid_mesh_formats = ['.ply', '.stl', '.obj', '.off']
 
 def is_poorly_sampled(num_faces, max_faces=1000):
-    """
-    Checks if a mesh has fewer than a given number of faces and vertices.
-    A mesh is poorly sampled if it has fewer than the threshold for both faces and vertices.
-    """
+
     return num_faces < max_faces
 
 def is_in_face_range(num_faces, min_faces, max_faces):
-    """
-    Checks if a mesh has a number of faces in the given range [min_faces, max_faces].
-    """
+
     return min_faces <= num_faces <= max_faces
 
 def is_heavily_sampled_by_vertices(num_faces, num_vertices, min_faces=5000):
-    """
-    Checks if a mesh has more than a given number of vertices.
-    """
+
     return num_vertices > min_faces
 
 def check_mesh(file_path):
-    """
-    Loads a mesh from the given file path and checks its face and vertex count.
-    Returns a tuple containing the number of faces and vertices of the mesh,
-    or None if there was an error loading it.
-    """
+
     try:
         # Load the mesh using Open3D
         mesh = o3d.io.read_triangle_mesh(file_path)
@@ -59,20 +48,14 @@ def check_mesh(file_path):
         return None, None
 
 def copy_mesh_to_folder(file_path, root, base_folder, destination_folder):
-    """
-    Copies the mesh into the specified destination folder, maintaining the subfolder (category) structure.
-    """
+
     relative_path = os.path.relpath(root, base_folder)  # Keep the relative subfolder path
     dest_folder = os.path.join(destination_folder, relative_path)
     os.makedirs(dest_folder, exist_ok=True)  # Create the folder if it doesn't exist
     shutil.copy(file_path, dest_folder)  # Copy the file
 
 def process_folder(base_folder, refined_folder, heavily_sampled_folder, ranges_folder, num_bins=20):
-    """
-    Traverses the base folder and all subfolders to check the number of faces and vertices of each mesh.
-    Copies meshes with fewer than 1000 faces and vertices to RefineNeeded, meshes with more than 5000 vertices to HeavilySampled,
-    and those within defined face ranges to their respective folders, maintaining the category structure.
-    """
+
     total_meshes = 0
     meshes_needing_refinement = 0
     meshes_heavily_sampled = 0

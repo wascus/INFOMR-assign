@@ -26,6 +26,7 @@ _Step5_KNN_GUI.py_: interractive version of the KNN search file with a GUI
 _Step5_tSNE.py_: code for performing dimensionality reduction using t-SNE   
 
 **STEP 6**  
+_Step6_Evaluation.py_: file used to evaluate the results of the queries 
 
 **Additional Files**  
 _AdditonalFIles_ComputeAverages.py:_ file that calculates averages over the entire file and per class  
